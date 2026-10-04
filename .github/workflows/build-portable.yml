@@ -59,17 +59,31 @@ jobs:
           New-Item -ItemType Directory -Force -Path "projectflow-windows-x64-portable\data\webview" | Out-Null
 
           # Copy compiled web assets
-          Copy-Item -Path "dist\*" -Destination "projectflow-windows-x64-portable\web" -Recurse -Force
+          if (Test-Path "dist") {
+            Copy-Item -Path "dist\*" -Destination "projectflow-windows-x64-portable\web" -Recurse -Force
+            Write-Host "[OK] Copied web assets to ./web"
+          }
 
-          # Copy initial data stores
-          Copy-Item -Path "data\projects.json" -Destination "projectflow-windows-x64-portable\data\projects.json" -Force
-          Copy-Item -Path "data\prompts.json" -Destination "projectflow-windows-x64-portable\data\prompts.json" -Force
+          # Copy or create initial data stores safely
+          if (Test-Path "data\projects.json") {
+            Copy-Item -Path "data\projects.json" -Destination "projectflow-windows-x64-portable\data\projects.json" -Force
+          } else {
+            Set-Content -Path "projectflow-windows-x64-portable\data\projects.json" -Value '{"projects":[],"features":[],"tasks":[],"viewLayout":"tree"}' -Encoding utf8
+          }
 
-          # Copy launchers and documents
-          Copy-Item -Path "start-web-mode.bat" -Destination "projectflow-windows-x64-portable\" -Force
-          Copy-Item -Path "start-desktop-mode.bat" -Destination "projectflow-windows-x64-portable\" -Force
-          Copy-Item -Path "README.txt" -Destination "projectflow-windows-x64-portable\" -Force
-          Copy-Item -Path "package.json" -Destination "projectflow-windows-x64-portable\" -Force
+          if (Test-Path "data\prompts.json") {
+            Copy-Item -Path "data\prompts.json" -Destination "projectflow-windows-x64-portable\data\prompts.json" -Force
+          } else {
+            Set-Content -Path "projectflow-windows-x64-portable\data\prompts.json" -Value '[]' -Encoding utf8
+          }
+          Write-Host "[OK] Local data isolated in ./data"
+
+          # Copy launchers and documents safely
+          @("start-web-mode.bat", "start-desktop-mode.bat", "README.txt", "package.json") | ForEach-Object {
+            if (Test-Path $_) {
+              Copy-Item -Path $_ -Destination "projectflow-windows-x64-portable\" -Force
+            }
+          }
 
           # Copy compiled Tauri executable
           if (Test-Path "src-tauri\target\release\projectflow.exe") {

@@ -47,6 +47,8 @@ const targetPromptsJson = path.join(dataDir, 'prompts.json');
 const sourcePromptsJson = path.join(rootDir, 'data', 'prompts.json');
 if (fs.existsSync(sourcePromptsJson)) {
   fs.copyFileSync(sourcePromptsJson, targetPromptsJson);
+} else {
+  fs.writeFileSync(targetPromptsJson, JSON.stringify([], null, 2), 'utf-8');
 }
 console.log('[OK] Local data isolated in ./data (projects.json and prompts.json)');
 

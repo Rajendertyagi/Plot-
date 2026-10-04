@@ -28,7 +28,7 @@
         }
       ],
       "createdAt": "2026-09-20",
-      "rootDirectory": "."
+      "rootDirectory": "/app/applet"
     },
     {
       "id": "proj-2",
@@ -133,7 +133,8 @@
           "completed": true
         }
       ],
-      "createdAt": "2026-09-22"
+      "createdAt": "2026-09-22",
+      "aiPromptContext": "Please inspect the relevant codebase files, check for existing patterns, formulate a concise implementation plan, and verify all imports and typings before generating code."
     },
     {
       "id": "task-2",
