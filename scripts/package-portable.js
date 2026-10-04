@@ -44,8 +44,14 @@ if (fs.existsSync(sourceProjectsJson)) {
 }
 console.log('✅ Local data isolated in ./data/projects.json (Zero AppData usage)');
 
-// 4. Copy launcher scripts and documentation
-const filesToCopy = ['start-web-mode.bat', 'start-desktop-mode.bat', 'README.txt'];
+// 4. Copy launcher scripts, server runtime and documentation
+const filesToCopy = [
+  'start-web-mode.bat',
+  'start-desktop-mode.bat',
+  'README.txt',
+  'server.ts',
+  'package.json'
+];
 for (const file of filesToCopy) {
   const src = path.join(rootDir, file);
   const dest = path.join(targetDir, file);
@@ -53,7 +59,7 @@ for (const file of filesToCopy) {
     fs.copyFileSync(src, dest);
   }
 }
-console.log('✅ Launchers copied (start-web-mode.bat [port 4000], start-desktop-mode.bat)');
+console.log('✅ Launchers & server.ts copied into portable package');
 
 // 5. Copy executable if already built by cargo/tauri
 const candidateExes = [

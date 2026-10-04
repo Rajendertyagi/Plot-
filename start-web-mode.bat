@@ -6,30 +6,43 @@ echo =======================================================
 echo          ProjectFlow - Web Mode (Port 4000)
 echo =======================================================
 echo.
-echo Starting ProjectFlow Web Server on http://localhost:4000 ...
 
 set PORT=4000
+set NODE_ENV=production
+set APP_DIR=%~dp0
 
-REM Try launching with bun if available, otherwise node/npx
+echo Starting Web Mode on port 4000...
+echo.
+
+REM Delayed browser opener (waits 2 seconds for server to bind port)
+start "" cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:4000"
+
+REM 1. Prefer Bun if available (instant, zero configuration)
 where bun >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo [Using Bun runtime]
-    start "" http://localhost:4000
-    bun run server.ts
+    echo [OK] Using Bun runtime...
+    cd /d "%APP_DIR%"
+    bun run "%APP_DIR%server.ts"
     goto end
 )
 
+REM 2. Fallback to Node.js / npx tsx
 where node >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo [Using Node runtime]
-    start "" http://localhost:4000
-    npx tsx server.ts
+    echo [OK] Using Node.js runtime...
+    cd /d "%APP_DIR%"
+    npx -y tsx "%APP_DIR%server.ts"
     goto end
 )
 
-echo [Error] Neither Bun nor Node was found on your PATH to host the local dev server.
-echo If you want standalone zero-dependency execution without Bun or Node,
-echo please double-click "projectflow.exe" or "start-desktop-mode.bat" instead!
+echo.
+echo [Notice] Neither Bun nor Node.js was found on your Windows PATH.
+echo.
+echo - For Desktop Mode (Zero runtime needed, 100% standalone):
+echo   Double-click "projectflow.exe" or "start-desktop-mode.bat"
+echo.
+echo - For Web Mode:
+echo   Install Bun from https://bun.sh or Node.js from https://nodejs.org
 echo.
 pause
 

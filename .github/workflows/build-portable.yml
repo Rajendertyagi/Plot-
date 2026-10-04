@@ -50,7 +50,7 @@ jobs:
         run: bun run build
 
       - name: Build Tauri Desktop Executable (x86_64 Release)
-        run: cargo build --release --manifest-path src-tauri/Cargo.toml
+        run: bun run tauri build --no-bundle
 
       - name: Assemble Self-Contained Portable Directory Structure
         run: bun run package:portable
