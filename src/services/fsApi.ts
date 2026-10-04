@@ -1,7 +1,7 @@
 import { FileNode, BrowseDirectoryResult } from '../types';
 import { isTauriDesktop, invokeDesktopCommand } from './environment';
 
-// Default virtual workspace files for web browser preview mode
+// Default virtual workspace files for offline / browser preview fallback mode
 const VIRTUAL_FS_STORAGE_KEY = 'projectflow_virtual_fs_v1';
 
 const DEFAULT_VIRTUAL_FILES: Record<string, string> = {
@@ -45,6 +45,7 @@ export const fsApi = {
    * Browse directories on the host machine for directory finder modal
    */
   async browseDirectory(dir?: string): Promise<BrowseDirectoryResult> {
+    // 1. Desktop Mode (Tauri IPC)
     if (isTauriDesktop()) {
       try {
         const result = await invokeDesktopCommand<BrowseDirectoryResult>('browse_directory', { dir });
@@ -54,7 +55,18 @@ export const fsApi = {
       }
     }
 
-    // Web fallback: virtual directory navigation
+    // 2. Web Server Mode (REST API /api/fs/browse)
+    try {
+      const url = dir ? `/api/fs/browse?dir=${encodeURIComponent(dir)}` : '/api/fs/browse';
+      const res = await fetch(url);
+      if (res.ok) {
+        return (await res.json()) as BrowseDirectoryResult;
+      }
+    } catch {
+      // Server not reachable, fall through to virtual files
+    }
+
+    // 3. Static/Offline Web fallback: virtual directory navigation
     const current = dir || '/workspace';
     return {
       exists: true,
@@ -68,6 +80,7 @@ export const fsApi = {
    * Get recursive file tree of the specified root folder
    */
   async fetchFileTree(root?: string): Promise<{ rootPath: string; tree: FileNode[] }> {
+    // 1. Desktop Mode (Tauri IPC)
     if (isTauriDesktop()) {
       try {
         const result = await invokeDesktopCommand<{ rootPath: string; tree: FileNode[] }>('read_tree', { root });
@@ -77,7 +90,18 @@ export const fsApi = {
       }
     }
 
-    // Web fallback: build tree from virtual files
+    // 2. Web Server Mode (REST API /api/fs/tree)
+    try {
+      const url = root ? `/api/fs/tree?root=${encodeURIComponent(root)}` : '/api/fs/tree';
+      const res = await fetch(url);
+      if (res.ok) {
+        return (await res.json()) as { rootPath: string; tree: FileNode[] };
+      }
+    } catch {
+      // Fall through to virtual tree
+    }
+
+    // 3. Static/Offline Web fallback: build tree from virtual files
     const store = getVirtualFileStore();
     const rootPath = root || '/workspace';
     const tree: FileNode[] = [
@@ -136,6 +160,7 @@ export const fsApi = {
     extension: string;
     modifiedAt: string;
   }> {
+    // 1. Desktop Mode (Tauri IPC)
     if (isTauriDesktop()) {
       try {
         const result = await invokeDesktopCommand<{
@@ -151,9 +176,24 @@ export const fsApi = {
       }
     }
 
-    // Web fallback: virtual file read
+    // 2. Web Server Mode (REST API /api/fs/read)
+    try {
+      const res = await fetch(`/api/fs/read?path=${encodeURIComponent(filePath)}`);
+      if (res.ok) {
+        return (await res.json()) as {
+          filePath: string;
+          content: string;
+          size: number;
+          extension: string;
+          modifiedAt: string;
+        };
+      }
+    } catch {
+      // Fall through to virtual storage
+    }
+
+    // 3. Static/Offline Web fallback: virtual file read
     const store = getVirtualFileStore();
-    // Normalize path by stripping /workspace/ prefix if present
     const normalizedKey = filePath.replace(/^\/?(workspace\/)?/, '');
     const content = store[normalizedKey] ?? store[filePath] ?? `// File: ${filePath}\n`;
     const ext = filePath.includes('.') ? `.${filePath.split('.').pop()?.toLowerCase()}` : '';
@@ -174,6 +214,7 @@ export const fsApi = {
     filePath: string,
     content: string
   ): Promise<{ success: boolean; filePath: string; size: number; savedAt: string }> {
+    // 1. Desktop Mode (Tauri IPC)
     if (isTauriDesktop()) {
       try {
         const result = await invokeDesktopCommand<{
@@ -188,7 +229,21 @@ export const fsApi = {
       }
     }
 
-    // Web fallback: save in virtual file store
+    // 2. Web Server Mode (REST API /api/fs/write)
+    try {
+      const res = await fetch('/api/fs/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, content }),
+      });
+      if (res.ok) {
+        return (await res.json()) as { success: boolean; filePath: string; size: number; savedAt: string };
+      }
+    } catch {
+      // Fall through
+    }
+
+    // 3. Static/Offline Web fallback: save in virtual file store
     const store = getVirtualFileStore();
     const normalizedKey = filePath.replace(/^\/?(workspace\/)?/, '');
     store[normalizedKey] = content;
@@ -206,6 +261,7 @@ export const fsApi = {
    * Create a new file or directory
    */
   async createItem(targetPath: string, isDirectory: boolean): Promise<boolean> {
+    // 1. Desktop Mode (Tauri IPC)
     if (isTauriDesktop()) {
       try {
         const result = await invokeDesktopCommand<boolean>('create_item', { targetPath, isDirectory });
@@ -215,6 +271,21 @@ export const fsApi = {
       }
     }
 
+    // 2. Web Server Mode (REST API /api/fs/create)
+    try {
+      const res = await fetch('/api/fs/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetPath, isDirectory }),
+      });
+      if (res.ok) {
+        return true;
+      }
+    } catch {
+      // Fall through
+    }
+
+    // 3. Static/Offline Web fallback
     if (!isDirectory) {
       const store = getVirtualFileStore();
       const normalizedKey = targetPath.replace(/^\/?(workspace\/)?/, '');
@@ -224,4 +295,3 @@ export const fsApi = {
     return true;
   },
 };
-
