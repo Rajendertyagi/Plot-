@@ -6,6 +6,8 @@ import {
   Calendar,
   Layers,
   ListTodo,
+  HardDrive,
+  FolderGit2,
 } from 'lucide-react';
 import { Project, Feature, Task, ViewLayout } from '../../types';
 import { COLOR_CLASSES } from '../../utils/helpers';
@@ -29,6 +31,8 @@ interface ProjectOverviewProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   searchFilter: string;
+  onOpenDirectoryFinder?: () => void;
+  onOpenRepoDock?: () => void;
 }
 
 export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
@@ -49,6 +53,8 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   onEditTask,
   onDeleteTask,
   searchFilter,
+  onOpenDirectoryFinder,
+  onOpenRepoDock,
 }) => {
   const projectFeatures = features.filter((f) => f.projectId === project.id);
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
@@ -96,11 +102,35 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 <ListTodo className="h-3.5 w-3.5 text-zinc-400" />
                 <span>{projectTasks.length} Total Tasks</span>
               </span>
+              {project.rootDirectory && (
+                <>
+                  <span className="text-zinc-600">·</span>
+                  <button
+                    onClick={onOpenDirectoryFinder}
+                    className="flex items-center gap-1.5 text-sky-400 hover:text-sky-300 transition-colors"
+                    title="Click to change linked repository directory"
+                  >
+                    <HardDrive className="h-3.5 w-3.5" />
+                    <span>{project.rootDirectory}</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Primary Action Buttons: Sleek ChatGPT-style pills */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {onOpenRepoDock && (
+              <button
+                onClick={onOpenRepoDock}
+                className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/20 text-xs font-medium transition-all shadow-xs"
+                title="Open CodeMirror Repository Explorer"
+              >
+                <FolderGit2 className="h-3.5 w-3.5 text-sky-400" />
+                <span>Code Explorer</span>
+              </button>
+            )}
+
             <button
               onClick={onOpenColumnManager}
               className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 text-xs font-medium transition-all shadow-xs"

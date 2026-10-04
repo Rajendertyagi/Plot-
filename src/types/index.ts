@@ -53,6 +53,7 @@ export interface Project {
   description: string;
   columns: StatusColumn[];
   createdAt: string;
+  rootDirectory?: string;
 }
 
 export type ViewLayout = 'board' | 'tree';
@@ -64,3 +65,21 @@ export interface AppDataPayload {
   viewLayout?: ViewLayout;
   activeProjectId?: string;
 }
+
+export interface FileNode {
+  name: string;
+  path: string;
+  relativePath: string;
+  isDirectory: boolean;
+  size?: number;
+  extension?: string;
+  children?: FileNode[];
+}
+
+export interface BrowseDirectoryResult {
+  currentPath: string;
+  parentPath: string | null;
+  directories: string[];
+  exists: boolean;
+}
+

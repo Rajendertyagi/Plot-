@@ -1,0 +1,34 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ProjectFlow",
+  "version": "1.0.0",
+  "identifier": "com.projectflow.portable",
+  "build": {
+    "beforeDevCommand": "",
+    "devUrl": "http://localhost:4000",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../web"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ProjectFlow — Project & Task Manager",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 960,
+        "minHeight": 640,
+        "center": true,
+        "decorations": true,
+        "transparent": false,
+        "theme": "Dark"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "none"
+  }
+}

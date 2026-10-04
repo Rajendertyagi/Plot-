@@ -8,6 +8,7 @@ import {
   ListTree,
   LayoutGrid,
   Download,
+  HardDrive,
 } from 'lucide-react';
 import { Project, ViewLayout } from '../../types';
 
@@ -21,6 +22,7 @@ interface HeaderProps {
   onSearchChange: (q: string) => void;
   onOpenNewProjectModal: () => void;
   onOpenColumnManager: () => void;
+  onOpenDirectoryFinder?: () => void;
   exportUrl?: string;
   isSaving?: boolean;
 }
@@ -35,10 +37,11 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   onOpenNewProjectModal,
   onOpenColumnManager,
+  onOpenDirectoryFinder,
   exportUrl,
   isSaving,
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 bg-[#121214] border-b border-white/[0.04] shadow-sm shadow-black/40">
@@ -108,6 +111,18 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+
+          {/* Linked Directory Finder Pill */}
+          {currentProject?.rootDirectory && onOpenDirectoryFinder && (
+            <button
+              onClick={onOpenDirectoryFinder}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-xs font-mono text-zinc-400 hover:text-white transition-colors border border-white/[0.04]"
+              title="Click to browse or change repository directory"
+            >
+              <HardDrive className="h-3 w-3 text-sky-400 shrink-0" />
+              <span className="truncate max-w-[150px]">{currentProject.rootDirectory}</span>
+            </button>
+          )}
         </div>
 
         {/* Center: Search Field */}

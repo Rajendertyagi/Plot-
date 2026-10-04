@@ -76,11 +76,18 @@ export function useProjectData() {
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0] || null;
 
   // Project Actions
-  const handleCreateOrUpdateProject = (title: string, description: string, editingProject?: Project | null) => {
+  const handleCreateOrUpdateProject = (
+    title: string,
+    description: string,
+    rootDirectory?: string,
+    editingProject?: Project | null
+  ) => {
     if (editingProject) {
       setProjects((prev) =>
         prev.map((p) =>
-          p.id === editingProject.id ? { ...p, title, description } : p
+          p.id === editingProject.id
+            ? { ...p, title, description, rootDirectory: rootDirectory !== undefined ? rootDirectory : p.rootDirectory }
+            : p
         )
       );
     } else {
@@ -96,10 +103,17 @@ export function useProjectData() {
         description,
         columns: defaultCols,
         createdAt: new Date().toISOString().split('T')[0],
+        rootDirectory: rootDirectory || '.',
       };
       setProjects((prev) => [newProj, ...prev]);
       setActiveProjectId(newProj.id);
     }
+  };
+
+  const handleUpdateProjectDirectory = (projectId: string, directoryPath: string) => {
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projectId ? { ...p, rootDirectory: directoryPath } : p))
+    );
   };
 
   const handleDeleteProject = (projectId: string) => {
@@ -270,6 +284,7 @@ export function useProjectData() {
     isSaving,
     lastSaved,
     handleCreateOrUpdateProject,
+    handleUpdateProjectDirectory,
     handleDeleteProject,
     handleCreateOrUpdateFeature,
     handleDeleteFeature,

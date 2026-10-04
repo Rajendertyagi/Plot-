@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Project, Feature, Task } from './types';
 import { useProjectData } from './hooks/useProjectData';
+import { AppShell } from './components/shell/AppShell';
 import { Header } from './components/layout/Header';
 import { ProjectSidebar } from './components/layout/ProjectSidebar';
 import { ProjectOverview } from './components/project/ProjectOverview';
@@ -13,6 +14,7 @@ import { ProjectModal } from './components/common/ProjectModal';
 import { FeatureModal } from './components/common/FeatureModal';
 import { TaskModal } from './components/common/TaskModal';
 import { ColumnManagerModal } from './components/common/ColumnManagerModal';
+import { DirectoryPickerModal } from './components/common/DirectoryPickerModal';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
@@ -28,6 +30,7 @@ export default function App() {
     isLoading,
     isSaving,
     handleCreateOrUpdateProject,
+    handleUpdateProjectDirectory,
     handleDeleteProject,
     handleCreateOrUpdateFeature,
     handleDeleteFeature,
@@ -57,6 +60,7 @@ export default function App() {
   const [defaultTaskStatusId, setDefaultTaskStatusId] = useState<string>('pending');
 
   const [isColumnManagerOpen, setIsColumnManagerOpen] = useState(false);
+  const [isDirectoryFinderOpen, setIsDirectoryFinderOpen] = useState(false);
 
   // Modal open handlers
   const handleOpenAddTask = (featureId: string, statusId?: string) => {
@@ -85,95 +89,116 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] text-zinc-100 flex flex-col font-sans selection:bg-zinc-700 selection:text-white">
-      {/* Top Header */}
-      <Header
+    <>
+      <AppShell
         currentProject={activeProject}
         projects={projects}
-        onSelectProject={setActiveProjectId}
-        viewLayout={viewLayout}
-        onChangeViewLayout={setViewLayout}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onOpenNewProjectModal={() => {
-          setEditingProject(null);
-          setIsProjectModalOpen(true);
-        }}
-        onOpenColumnManager={() => setIsColumnManagerOpen(true)}
-        exportUrl={exportUrl}
         isSaving={isSaving}
-      />
-
-      {/* Main Workspace Layout: Sidebar + Viewport */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Projects Navigation Sidebar */}
-        <ProjectSidebar
-          projects={projects}
-          activeProjectId={activeProjectId}
-          features={features}
-          tasks={tasks}
-          onSelectProject={setActiveProjectId}
-          onOpenNewProjectModal={() => {
-            setEditingProject(null);
-            setIsProjectModalOpen(true);
-          }}
-          onEditProject={(proj) => {
-            setEditingProject(proj);
-            setIsProjectModalOpen(true);
-          }}
-          onDeleteProject={handleDeleteProject}
-        />
-
-        {/* Main Content Area */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
-          {activeProject ? (
-            <ProjectOverview
-              project={activeProject}
-              features={features}
-              tasks={tasks}
-              viewLayout={viewLayout}
-              onOpenNewFeatureModal={() => {
-                setEditingFeature(null);
-                setIsFeatureModalOpen(true);
-              }}
-              onOpenColumnManager={() => setIsColumnManagerOpen(true)}
-              onEditProject={(proj) => {
-                setEditingProject(proj);
+        viewLayout={viewLayout}
+        exportUrl={exportUrl}
+        onUpdateRootDirectory={(newPath) => {
+          if (activeProject) {
+            handleUpdateProjectDirectory(activeProject.id, newPath);
+          }
+        }}
+        onOpenDirectoryFinder={() => setIsDirectoryFinderOpen(true)}
+        onOpenColumnManager={() => setIsColumnManagerOpen(true)}
+        header={
+          <Header
+            currentProject={activeProject}
+            projects={projects}
+            onSelectProject={setActiveProjectId}
+            viewLayout={viewLayout}
+            onChangeViewLayout={setViewLayout}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onOpenNewProjectModal={() => {
+              setEditingProject(null);
+              setIsProjectModalOpen(true);
+            }}
+            onOpenColumnManager={() => setIsColumnManagerOpen(true)}
+            onOpenDirectoryFinder={() => setIsDirectoryFinderOpen(true)}
+            exportUrl={exportUrl}
+            isSaving={isSaving}
+          />
+        }
+        sidebar={
+          <ProjectSidebar
+            projects={projects}
+            activeProjectId={activeProjectId}
+            features={features}
+            tasks={tasks}
+            onSelectProject={setActiveProjectId}
+            onOpenNewProjectModal={() => {
+              setEditingProject(null);
+              setIsProjectModalOpen(true);
+            }}
+            onEditProject={(proj) => {
+              setEditingProject(proj);
+              setIsProjectModalOpen(true);
+            }}
+            onDeleteProject={handleDeleteProject}
+          />
+        }
+      >
+        {activeProject ? (
+          <ProjectOverview
+            project={activeProject}
+            features={features}
+            tasks={tasks}
+            viewLayout={viewLayout}
+            onOpenNewFeatureModal={() => {
+              setEditingFeature(null);
+              setIsFeatureModalOpen(true);
+            }}
+            onOpenColumnManager={() => setIsColumnManagerOpen(true)}
+            onOpenDirectoryFinder={() => setIsDirectoryFinderOpen(true)}
+            onOpenRepoDock={() => {
+              // Trigger dock open via keyboard event dispatch or ref
+              const event = new KeyboardEvent('keydown', {
+                key: 'j',
+                ctrlKey: true,
+                metaKey: true,
+                bubbles: true,
+              });
+              window.dispatchEvent(event);
+            }}
+            onEditProject={(proj) => {
+              setEditingProject(proj);
+              setIsProjectModalOpen(true);
+            }}
+            onAddTask={handleOpenAddTask}
+            onEditFeature={(feat) => {
+              setEditingFeature(feat);
+              setIsFeatureModalOpen(true);
+            }}
+            onDeleteFeature={handleDeleteFeature}
+            onUpdateTaskStatus={handleUpdateTaskStatus}
+            onToggleSubtask={handleToggleSubtask}
+            onAddSubtaskToTask={handleAddSubtaskToTask}
+            onDeleteSubtaskFromTask={handleDeleteSubtaskFromTask}
+            onEditTask={handleOpenEditTask}
+            onDeleteTask={handleDeleteTask}
+            searchFilter={searchQuery}
+          />
+        ) : (
+          <div className="text-center py-20 space-y-3">
+            <h2 className="text-base font-semibold text-white">No active project</h2>
+            <p className="text-xs text-zinc-400">
+              Create a project to start organizing features, tracking tasks, and exploring code.
+            </p>
+            <button
+              onClick={() => {
+                setEditingProject(null);
                 setIsProjectModalOpen(true);
               }}
-              onAddTask={handleOpenAddTask}
-              onEditFeature={(feat) => {
-                setEditingFeature(feat);
-                setIsFeatureModalOpen(true);
-              }}
-              onDeleteFeature={handleDeleteFeature}
-              onUpdateTaskStatus={handleUpdateTaskStatus}
-              onToggleSubtask={handleToggleSubtask}
-              onAddSubtaskToTask={handleAddSubtaskToTask}
-              onDeleteSubtaskFromTask={handleDeleteSubtaskFromTask}
-              onEditTask={handleOpenEditTask}
-              onDeleteTask={handleDeleteTask}
-              searchFilter={searchQuery}
-            />
-          ) : (
-            <div className="text-center py-20 space-y-3">
-              <h2 className="text-base font-semibold text-white">No active project</h2>
-              <p className="text-xs text-zinc-400">
-                Create a project to start organizing features and tracking tasks.
-              </p>
-              <button
-                onClick={() => {
-                  setEditingProject(null);
-                  setIsProjectModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-full bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium transition-all shadow-xs"
-              >
-                Create First Project
-              </button>
-            </div>
-          )}
-        </main>
-      </div>
+              className="px-4 py-2 rounded-full bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium transition-all shadow-xs"
+            >
+              Create First Project
+            </button>
+          </div>
+        )}
+      </AppShell>
 
       {/* Common Modals */}
       <ProjectModal
@@ -182,7 +207,9 @@ export default function App() {
           setIsProjectModalOpen(false);
           setEditingProject(null);
         }}
-        onSubmit={(title, desc) => handleCreateOrUpdateProject(title, desc, editingProject)}
+        onSubmit={(title, desc, rootDir) =>
+          handleCreateOrUpdateProject(title, desc, rootDir, editingProject)
+        }
         initialProject={editingProject}
       />
 
@@ -223,6 +250,19 @@ export default function App() {
           onSaveColumns={handleSaveColumns}
         />
       )}
-    </div>
+
+      {/* Global System Directory Finder Modal */}
+      {activeProject && (
+        <DirectoryPickerModal
+          isOpen={isDirectoryFinderOpen}
+          initialDirectory={activeProject.rootDirectory || '.'}
+          onClose={() => setIsDirectoryFinderOpen(false)}
+          onSelectDirectory={(selectedPath) => {
+            handleUpdateProjectDirectory(activeProject.id, selectedPath);
+          }}
+          title={`Link Local Directory for "${activeProject.title}"`}
+        />
+      )}
+    </>
   );
 }

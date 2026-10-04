@@ -1,13 +1,30 @@
 import { AppDataPayload } from '../types';
+import { isTauriDesktop, invokeDesktopCommand } from './environment';
 
 const API_BASE = '/api/data';
 const BACKUP_STORAGE_KEY = 'projectflow_offline_backup_v1';
 
 export const apiService = {
   /**
-   * Fetch all application data from the server-backed JSON file on disk
+   * Fetch all application data.
+   * - In Desktop mode: reads from isolated ./data/projects.json via native Rust IPC
+   * - In Web mode: reads from /api/data on port 4000
    */
   async fetchData(): Promise<AppDataPayload | null> {
+    // 1. Try Desktop Mode (Native Tauri)
+    if (isTauriDesktop()) {
+      try {
+        const data = await invokeDesktopCommand<AppDataPayload>('load_project_data');
+        if (data) {
+          localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(data));
+          return data;
+        }
+      } catch (err) {
+        console.warn('Native desktop data load failed, checking web API fallback:', err);
+      }
+    }
+
+    // 2. Web Mode (Fetch via REST API)
     try {
       const response = await fetch(API_BASE, {
         headers: { Accept: 'application/json' },
@@ -16,11 +33,10 @@ export const apiService = {
         throw new Error(`Server returned ${response.status}`);
       }
       const data: AppDataPayload = await response.json();
-      // Cache local copy for offline resilience
       localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(data));
       return data;
     } catch (error) {
-      console.warn('Could not fetch from server API, falling back to cached disk snapshot:', error);
+      console.warn('Could not fetch from server API, falling back to cached snapshot:', error);
       const cached = localStorage.getItem(BACKUP_STORAGE_KEY);
       if (cached) {
         try {
@@ -34,7 +50,9 @@ export const apiService = {
   },
 
   /**
-   * Atomically save the entire state payload directly to data/projects.json on disk
+   * Atomically save state payload to disk.
+   * - In Desktop mode: writes to ./data/projects.json next to .exe via native Rust IPC
+   * - In Web mode: writes to /api/data on port 4000
    */
   async saveData(payload: AppDataPayload): Promise<boolean> {
     // Immediate local cache
@@ -44,6 +62,17 @@ export const apiService = {
       console.error('LocalStorage write error', e);
     }
 
+    // 1. Desktop Mode
+    if (isTauriDesktop()) {
+      try {
+        const result = await invokeDesktopCommand<boolean>('save_project_data', { payload });
+        return result ?? true;
+      } catch (err) {
+        console.warn('Desktop native save failed, trying web fallback:', err);
+      }
+    }
+
+    // 2. Web Mode
     try {
       const response = await fetch(API_BASE, {
         method: 'POST',

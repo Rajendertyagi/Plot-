@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan to refactor the project into a production-grade full-stack architecture: server-backed JSON disk persistence (read/write to data/projects.json via Express API), a clean modular folder structure, and a centralized CSS design token system.",
-  "updatedAt":  "2026-10-04T14:00:14.927327929Z",
+  "summary":  "Revised plan incorporating Port 4000 for Web Mode and an external 'web/' folder placed directly next to the standalone executable in the portable Windows x64 ZIP package.",
+  "updatedAt":  "2026-10-04T15:16:22.677202190Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

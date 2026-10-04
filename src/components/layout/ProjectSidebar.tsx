@@ -7,6 +7,7 @@ import {
   Trash2,
   Edit2,
   ListTodo,
+  HardDrive,
 } from 'lucide-react';
 import { Project, Feature, Task } from '../../types';
 
@@ -89,6 +90,12 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                     <span>·</span>
                     <span>{projTasks.length} tasks</span>
                   </div>
+                  {proj.rootDirectory && (
+                    <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-500 truncate pt-0.5">
+                      <HardDrive className="h-2.5 w-2.5 text-sky-400/80 shrink-0" />
+                      <span className="truncate">{proj.rootDirectory}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* More options button */}
