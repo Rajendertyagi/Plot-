@@ -7,15 +7,18 @@ import React, { useState } from 'react';
 import { Project, Feature, Task } from './types';
 import { useProjectData } from './hooks/useProjectData';
 import { AppShell } from './components/shell/AppShell';
-import { Header } from './components/layout/Header';
-import { ProjectSidebar } from './components/layout/ProjectSidebar';
+import { ActivityRail } from './components/layout/ActivityRail';
+import { ResizableSidebar } from './components/layout/ResizableSidebar';
+import { CompactHeader } from './components/layout/CompactHeader';
 import { ProjectOverview } from './components/project/ProjectOverview';
+import { AiPromptConsole } from './components/features/AiPromptConsole';
 import { ProjectModal } from './components/common/ProjectModal';
 import { FeatureModal } from './components/common/FeatureModal';
 import { TaskModal } from './components/common/TaskModal';
 import { ColumnManagerModal } from './components/common/ColumnManagerModal';
 import { DirectoryPickerModal } from './components/common/DirectoryPickerModal';
 import { Loader2 } from 'lucide-react';
+import { Button } from './components/ui/button';
 
 export default function App() {
   const {
@@ -46,6 +49,9 @@ export default function App() {
 
   // Search filter query
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Active feature filter for focused sidebar navigation
+  const [activeFeatureId, setActiveFeatureId] = useState<string | null>(null);
 
   // Modals state
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -79,14 +85,19 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center text-zinc-400">
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-neutral-400">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin text-white" />
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
           <span className="text-xs font-mono">Loading data from projects.json...</span>
         </div>
       </div>
     );
   }
+
+  // Filter features if a specific feature is selected in sidebar
+  const visibleFeatures = activeFeatureId
+    ? features.filter((f) => f.id === activeFeatureId)
+    : features;
 
   return (
     <>
@@ -103,99 +114,113 @@ export default function App() {
         }}
         onOpenDirectoryFinder={() => setIsDirectoryFinderOpen(true)}
         onOpenColumnManager={() => setIsColumnManagerOpen(true)}
-        header={
-          <Header
-            currentProject={activeProject}
+        activityRail={
+          <ActivityRail
             projects={projects}
+            activeProjectId={activeProjectId}
             onSelectProject={setActiveProjectId}
-            viewLayout={viewLayout}
-            onChangeViewLayout={setViewLayout}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onOpenNewProjectModal={() => {
+            onOpenCreateProject={() => {
               setEditingProject(null);
               setIsProjectModalOpen(true);
             }}
+            viewLayout={viewLayout}
+            onChangeViewLayout={setViewLayout}
+          />
+        }
+        sidebar={
+          <ResizableSidebar
+            project={activeProject}
+            features={features}
+            tasks={tasks}
+            activeFeatureId={activeFeatureId}
+            onSelectFeature={setActiveFeatureId}
+            onSelectTask={(taskId) => {
+              const task = tasks.find((t) => t.id === taskId);
+              if (task) handleOpenEditTask(task);
+            }}
+            onOpenNewFeatureModal={() => {
+              setEditingFeature(null);
+              setIsFeatureModalOpen(true);
+            }}
+            onEditFeature={(feat) => {
+              setEditingFeature(feat);
+              setIsFeatureModalOpen(true);
+            }}
+            onDeleteFeature={handleDeleteFeature}
+            onEditProject={(proj) => {
+              setEditingProject(proj);
+              setIsProjectModalOpen(true);
+            }}
+            onToggleSubtask={handleToggleSubtask}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        }
+        header={
+          <CompactHeader
+            currentProject={activeProject}
+            viewLayout={viewLayout}
             onOpenColumnManager={() => setIsColumnManagerOpen(true)}
             onOpenDirectoryFinder={() => setIsDirectoryFinderOpen(true)}
             exportUrl={exportUrl}
             isSaving={isSaving}
           />
         }
-        sidebar={
-          <ProjectSidebar
-            projects={projects}
-            activeProjectId={activeProjectId}
-            features={features}
-            tasks={tasks}
-            onSelectProject={setActiveProjectId}
-            onOpenNewProjectModal={() => {
-              setEditingProject(null);
-              setIsProjectModalOpen(true);
-            }}
-            onEditProject={(proj) => {
-              setEditingProject(proj);
-              setIsProjectModalOpen(true);
-            }}
-            onDeleteProject={handleDeleteProject}
-          />
-        }
       >
         {activeProject ? (
-          <ProjectOverview
-            project={activeProject}
-            features={features}
-            tasks={tasks}
-            viewLayout={viewLayout}
-            onOpenNewFeatureModal={() => {
-              setEditingFeature(null);
-              setIsFeatureModalOpen(true);
-            }}
-            onOpenColumnManager={() => setIsColumnManagerOpen(true)}
-            onOpenDirectoryFinder={() => setIsDirectoryFinderOpen(true)}
-            onOpenRepoDock={() => {
-              // Trigger dock open via keyboard event dispatch or ref
-              const event = new KeyboardEvent('keydown', {
-                key: 'j',
-                ctrlKey: true,
-                metaKey: true,
-                bubbles: true,
-              });
-              window.dispatchEvent(event);
-            }}
-            onEditProject={(proj) => {
-              setEditingProject(proj);
-              setIsProjectModalOpen(true);
-            }}
-            onAddTask={handleOpenAddTask}
-            onEditFeature={(feat) => {
-              setEditingFeature(feat);
-              setIsFeatureModalOpen(true);
-            }}
-            onDeleteFeature={handleDeleteFeature}
-            onUpdateTaskStatus={handleUpdateTaskStatus}
-            onToggleSubtask={handleToggleSubtask}
-            onAddSubtaskToTask={handleAddSubtaskToTask}
-            onDeleteSubtaskFromTask={handleDeleteSubtaskFromTask}
-            onEditTask={handleOpenEditTask}
-            onDeleteTask={handleDeleteTask}
-            searchFilter={searchQuery}
-          />
+          viewLayout === 'ai' ? (
+            <AiPromptConsole
+              project={activeProject}
+              features={features}
+              tasks={tasks}
+              searchFilter={searchQuery}
+            />
+          ) : (
+            <ProjectOverview
+              project={activeProject}
+              features={visibleFeatures}
+              tasks={tasks}
+              viewLayout={viewLayout}
+              onOpenNewFeatureModal={() => {
+                setEditingFeature(null);
+                setIsFeatureModalOpen(true);
+              }}
+              onOpenColumnManager={() => setIsColumnManagerOpen(true)}
+              onOpenDirectoryFinder={() => setIsDirectoryFinderOpen(true)}
+              onEditProject={(proj) => {
+                setEditingProject(proj);
+                setIsProjectModalOpen(true);
+              }}
+              onAddTask={handleOpenAddTask}
+              onEditFeature={(feat) => {
+                setEditingFeature(feat);
+                setIsFeatureModalOpen(true);
+              }}
+              onDeleteFeature={handleDeleteFeature}
+              onUpdateTaskStatus={handleUpdateTaskStatus}
+              onToggleSubtask={handleToggleSubtask}
+              onAddSubtaskToTask={handleAddSubtaskToTask}
+              onDeleteSubtaskFromTask={handleDeleteSubtaskFromTask}
+              onEditTask={handleOpenEditTask}
+              onDeleteTask={handleDeleteTask}
+              searchFilter={searchQuery}
+            />
+          )
         ) : (
           <div className="text-center py-20 space-y-3">
-            <h2 className="text-base font-semibold text-white">No active project</h2>
-            <p className="text-xs text-zinc-400">
-              Create a project to start organizing features, tracking tasks, and exploring code.
+            <h2 className="text-base font-semibold text-neutral-100">No active project</h2>
+            <p className="text-xs text-neutral-400 max-w-sm mx-auto">
+              Create a project to start planning features and generating AI-ready tasks.
             </p>
-            <button
+            <Button
               onClick={() => {
                 setEditingProject(null);
                 setIsProjectModalOpen(true);
               }}
-              className="px-4 py-2 rounded-full bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium transition-all shadow-xs"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white"
             >
               Create First Project
-            </button>
+            </Button>
           </div>
         )}
       </AppShell>

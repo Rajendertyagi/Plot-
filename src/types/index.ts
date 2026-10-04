@@ -31,10 +31,13 @@ export interface Task {
   description: string;
   statusId: string; // references StatusColumn.id
   priority: TaskPriority;
-  assignee: string;
-  dueDate: string;
+  aiPromptContext?: string; // AI instructions, prompt draft or requirements
+  linkedFiles?: string[]; // Codebase paths relevant to task (e.g. src/App.tsx)
   subtasks: Subtask[];
   createdAt: string;
+  // Legacy optional fields for backwards compatibility with existing saved data
+  assignee?: string;
+  dueDate?: string;
 }
 
 export interface Feature {
@@ -42,9 +45,11 @@ export interface Feature {
   projectId: string;
   title: string;
   description: string;
-  lead: string;
-  targetDate?: string;
+  tags?: string[];
   createdAt: string;
+  // Legacy optional fields for backwards compatibility
+  lead?: string;
+  targetDate?: string;
 }
 
 export interface Project {
@@ -56,7 +61,7 @@ export interface Project {
   rootDirectory?: string;
 }
 
-export type ViewLayout = 'board' | 'tree';
+export type ViewLayout = 'board' | 'tree' | 'files' | 'ai';
 
 export interface AppDataPayload {
   projects: Project[];
@@ -82,4 +87,3 @@ export interface BrowseDirectoryResult {
   directories: string[];
   exists: boolean;
 }
-

@@ -137,8 +137,9 @@ export function useProjectData() {
     data: {
       title: string;
       description: string;
-      lead: string;
-      targetDate: string;
+      tags?: string[];
+      lead?: string;
+      targetDate?: string;
     },
     editingFeature?: Feature | null
   ) => {
@@ -152,6 +153,7 @@ export function useProjectData() {
                 ...f,
                 title: data.title,
                 description: data.description,
+                tags: data.tags,
                 lead: data.lead,
                 targetDate: data.targetDate,
               }
@@ -164,6 +166,7 @@ export function useProjectData() {
         projectId: activeProject.id,
         title: data.title,
         description: data.description,
+        tags: data.tags,
         lead: data.lead,
         targetDate: data.targetDate,
         createdAt: new Date().toISOString().split('T')[0],

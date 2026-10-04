@@ -1,59 +1,121 @@
-# Fix Plan: Windows Icon Resource, Encoding, Build Order & Security Containment
+# Modular Real Hierarchical Tree System with Linked Elements
 
-Detailed analysis and fix plan for the `icon.ico` build failure and all 4 reported issues:
+Refactors the sidebar tree panel into a fully modular, extensible tree architecture. Upgrades the tree to a true multi-tier hierarchical system (Features → Tasks → Linked Code Files & Subtasks) complete with visual indentation guide lines, smart sorting controls (Status & Priority), and synchronized cross-view selection.
 
----
+## User Review & Critical Decisions
 
-## 1. Issue Analysis & Confirmed Solutions
+> [!IMPORTANT]
+> The following architectural decisions were clarified and confirmed:
 
-### Issue 0 (The Fatal Build Crash): `src-tauri/icons/icon.ico` not found
-- **Cause**: On Windows, `tauri-build` compiles a native `.rc` (Windows Resource) file embedding the application icon into `projectflow.exe`. If `src-tauri/icons/icon.ico` does not exist, `tauri-build` aborts compilation with exit code 1.
-- **Fix**: Generate and commit valid multi-resolution Windows `icon.ico` (256x256, 128x128, 64x64, 48x48, 32x32, 16x16) and companion PNGs (`icon.png`, `32x32.png`, `128x128.png`, `Square150x150Logo.png`) into `src-tauri/icons/`.
-
-### Issue 1: Mojibake in `tauri.conf.json` window title
-- **Cause**: The em-dash `—` (`\u2014`) in `"ProjectFlow — Project & Task Manager"` is parsed by the Windows MSVC resource compiler and CMD without UTF-8 codepage guarantees, rendering as `?` on Windows.
-- **Fix**: Replace em-dash with standard ASCII: `"ProjectFlow - Project & Task Manager"`.
-
-### Issue 2: `frontendDist` vs `dist/` vs `web/`
-- **Cause**: If `frontendDist` points to `../web` while Vite outputs to `dist/`, `cargo build` fails unless `web/` already exists.
-- **Fix**:
-  - In `tauri.conf.json`: Set `"frontendDist": "../dist"`.
-  - In CI & local packaging: `bun run build` generates `dist/`, `cargo build` reads `dist/`, and then the packaging step copies `dist/` into `web/` directly next to `projectflow.exe`.
-
-### Issue 3: Unused `tokio` and `walkdir` in `Cargo.toml`
-- **Cause**: `tokio = { features = ["full"] }` and `walkdir` add 50+ unnecessary crates and several minutes of CI compile time. Tauri v2 already embeds its own internal runtime, and `main.rs` uses synchronous standard library `std::fs`.
-- **Fix**: Remove `tokio` and `walkdir` from `src-tauri/Cargo.toml`. Retain only `tauri`, `serde`, `serde_json`, and `chrono`.
-
-### Issue 4: Path Traversal Vulnerability in `server.ts`
-- **Cause**: `/api/fs/read`, `/api/fs/write`, and `/api/fs/create` accept arbitrary file paths. If Web Mode is hosted on port 4000 across a local network, any connected user could read or overwrite system files outside the intended project.
-- **Fix**:
-  - Implement a strict `isPathWithinAllowedRoots(targetPath, allowedRoots)` helper.
-  - Allowed roots include the current working directory (`process.cwd()`) and any registered `rootDirectory` paths from the user's projects in `data/projects.json`.
-  - Reject paths trying to climb out using `..` or targeting forbidden system directories (e.g. `C:\Windows`, `/etc`, root).
+- **Hierarchical Depth & Linked Elements (Confirmed)**:
+  - **Level 1 (Feature Nodes)**: Feature title, task progress ratio (`2/5`), expand/collapse toggle, and management menu.
+  - **Level 2 (Task Nodes)**: Task status indicator, title, priority tag, subtask counter, and linked file counter.
+  - **Level 3 (Linked Code Files & Subtasks)**: Direct expand/collapse under tasks to reveal linked files (e.g. `src/App.tsx`, `server.ts`) with file icons, as well as subtasks with instant toggleable check states.
+- **Smart Sorting & Controls (Confirmed)**:
+  - Add a compact toolbar below the project row with Sort options:
+    - **Smart (Recommended)**: Groups by active status (In Progress first), then by Priority (High → Medium → Low).
+    - **Alphabetical**: A–Z by title.
+    - **Status Flow**: Backlog → Todo → In Progress → Review → Done.
+  - Quick "Expand All" / "Collapse All" tree toggles.
+- **Node Selection & Synchronized Highlighting (Confirmed)**:
+  - Clicking a Feature filters the canvas to that feature.
+  - Clicking a Task highlights it and scrolls/focuses it in the active board/tree view.
+  - Clicking a Linked File opens/highlights file context in the Codebase Explorer.
+- **Modular Component Architecture (Confirmed)**:
+  - Break monolithic code into decoupled, single-responsibility modules under `src/components/tree/` for effortless future extensibility:
+    - `types.ts`: Type definitions for tree nodes, node kinds, sort options.
+    - `treeUtils.ts`: Pure tree construction, smart sorting, and recursive filtering functions.
+    - `TreeToolbar.tsx`: Sort selector, expand/collapse toggles, and count badges.
+    - `TreeNodeItem.tsx`: High-performance recursive node renderer with tree guide lines and node-type icons.
+    - `ResizableSidebar.tsx`: Clean orchestrator combining the topmost search box, project header, toolbar, and tree view.
 
 ---
 
-## 2. Implementation Steps
+## 1. Modular Architecture Overview
 
-1. **Icons Generation**:
-   - Create `scripts/generate-icons.js` to create valid, compliant ICO and PNG assets in `src-tauri/icons/`.
-   - Run the script so `src-tauri/icons/icon.ico` and standard icons exist in the repository.
-
-2. **`src-tauri/tauri.conf.json` Clean-up**:
-   - Change window title to ASCII `"ProjectFlow - Project & Task Manager"`.
-   - Set `"frontendDist": "../dist"`.
-   - Ensure `"bundle": { "active": false }`.
-
-3. **`src-tauri/Cargo.toml` Streamlining**:
-   - Remove `tokio = { version = "1", features = ["full"] }`.
-   - Remove `walkdir = "2"`.
-   - Keep only essential, lightweight dependencies.
-
-4. **Security Hardening in `server.ts`**:
-   - Add boundary validation so all file system reads, writes, and listings stay strictly within legitimate project roots.
-   - Return clean 403 Forbidden responses when an out-of-bounds path is requested.
+```
+src/components/
+├── layout/
+│   ├── ResizableSidebar.tsx       # Orchestrator: Top Search + Project Row + Tree
+│   └── CompactHeader.tsx          # Clean top breadcrumb header
+└── tree/
+    ├── types.ts                   # TreeNode interface, TreeFilter, SortOption
+    ├── treeUtils.ts               # buildTreeData(), sortTreeNodes(), filterTree()
+    ├── TreeToolbar.tsx            # Sort selector, Expand All / Collapse All
+    ├── TreeNodeItem.tsx           # Multi-level node with guide lines & icon badges
+    └── TreeView.tsx               # Virtual/scrolling tree container with empty states
+```
 
 ---
 
-## 3. User Review & Approval
-Please click **Proceed** to implement the icon generation, Cargo.toml cleanup, tauri.conf.json fix, and path traversal security boundary.
+## 2. Tree Visual Hierarchy & Guide Rails
+
+```
+┌────────────────────────────────────────────────────────┐
+│ [🔍] Search tree, tasks, files...     [4 matches] [X]  │ <- Topmost full-width
+├────────────────────────────────────────────────────────┤
+│ [Folder] ProjectFlow Web           [~/desktop]   [...] │ <- Project metadata
+├────────────────────────────────────────────────────────┤
+│ Sort: [⚡ Smart (Priority)]       [⤢ Expand] [⤡ Fold]  │ <- Tree Toolbar
+├────────────────────────────────────────────────────────┤
+│ ▼ 📂 Authentication & RBAC                   [3/4] [...]
+│   │
+│   ├── ▼ 🟣 Implement Google OAuth Token Flow  [HIGH]
+│   │   │   ├── 📄 src/auth/oauth.ts                     │ <- Linked Code File
+│   │   │   ├── 📄 server.ts                             │ <- Linked Code File
+│   │   │   ├── ☑ Token refresh rotation logic          │ <- Subtask (Done)
+│   │   │   └── ☐ Popup fallback error modal            │ <- Subtask (Todo)
+│   │   │
+│   │   └── ▶ 🟢 Secure Session Persistence     [MED]
+│   │
+│   └── ▶ 📂 Database Sync & Cloud Backup        [1/2]
+└────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Key Technical Decisions & Data Flow
+
+1. **Decoupled Tree Node Model (`TreeNode`)**:
+   - Each node contains `{ id, label, kind, data, children, isExpanded, isSelected, level }`.
+   - Adding a new child type in the future (e.g. test suites, API endpoints, git branches) only requires adding a case in `treeUtils.ts` without altering UI rendering logic.
+
+2. **Smart Sorting Pipeline**:
+   - Features sorted by progress / pending tasks.
+   - Tasks sorted by status priority: `in-progress` (urgent) > `todo` > `backlog` > `done`, secondary sorted by priority (`high` > `medium` > `low`).
+   - Toggles available via the `TreeToolbar`.
+
+3. **Indentation & Visual Rails**:
+   - CSS tree guide lines via left border lines and pseudo-connector lines (`border-l border-neutral-800/80 hover:border-neutral-700`).
+
+---
+
+## 4. Implementation Steps
+
+1. **`src/components/tree/types.ts`**:
+   - Define `TreeNodeKind = 'feature' | 'task' | 'file' | 'subtask'`.
+   - Define `TreeSortMode = 'smart' | 'alphabetical' | 'status'`.
+   - Define node interfaces and callback signatures.
+
+2. **`src/components/tree/treeUtils.ts`**:
+   - Implement `buildProjectTree()`: maps `features`, `tasks`, and their linked files and subtasks into a unified hierarchical structure.
+   - Implement `sortTreeNodes()` and `filterTreeNodes()` with live query matching.
+
+3. **`src/components/tree/TreeToolbar.tsx`**:
+   - Minimal shadcn-styled toolbar with sort dropdown menu and expand/collapse all buttons.
+
+4. **`src/components/tree/TreeNodeItem.tsx`**:
+   - Renders node row according to its kind (`feature`, `task`, `file`, `subtask`).
+   - Renders collapsible child container with vertical guide rail.
+   - Handles selection and toggle actions.
+
+5. **`src/components/tree/TreeView.tsx`**:
+   - Encapsulates tree state (expanded node IDs, selection).
+   - Renders the list of root nodes.
+
+6. **`src/components/layout/ResizableSidebar.tsx`**:
+   - Integrate `TreeView` and `TreeToolbar` beneath the topmost search box and project header.
+
+7. **Verification**:
+   - Run `lint_applet` and `compile_applet`.
+   - Verify zero errors and verify linked files and subtasks expand smoothly with active selection.
