@@ -41,6 +41,40 @@ pub fn get_prompts_file() -> PathBuf {
     get_data_dir().join("prompts.json")
 }
 
+/// Read projects data from disk
+pub fn read_projects_data() -> Result<serde_json::Value, String> {
+    let file_path = get_projects_file();
+    if !file_path.exists() {
+        return Ok(serde_json::json!({
+            "projects": [],
+            "features": [],
+            "tasks": [],
+            "viewLayout": "tree"
+        }));
+    }
+    let content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("Failed to read {}: {}", file_path.display(), e))?;
+    let json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Invalid JSON in {}: {}", file_path.display(), e))?;
+    Ok(json)
+}
+
+/// Atomically write projects data to disk
+pub fn write_projects_data(payload: &serde_json::Value) -> Result<bool, String> {
+    let file_path = get_projects_file();
+    if let Some(parent) = file_path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+
+    let tmp_path = file_path.with_extension("tmp");
+    let content = serde_json::to_string_pretty(payload).map_err(|e| e.to_string())?;
+    fs::write(&tmp_path, content).map_err(|e| e.to_string())?;
+    fs::rename(&tmp_path, &file_path).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 /// Get path to portable ./web directory
 pub fn get_web_dir() -> PathBuf {
     let base = get_base_dir();
@@ -48,7 +82,6 @@ pub fn get_web_dir() -> PathBuf {
     if web.exists() {
         web
     } else {
-        // Fallback for dev mode where web assets are in dist
         let dist = base.join("dist");
         if dist.exists() {
             dist
@@ -62,7 +95,7 @@ pub fn get_web_dir() -> PathBuf {
 // DTO Types for File System API
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BrowseResult {
     pub exists: bool,
     #[serde(rename = "currentPath")]
@@ -74,7 +107,7 @@ pub struct BrowseResult {
     pub workspace_root: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FileNodeDto {
     pub name: String,
     pub path: String,
@@ -87,14 +120,14 @@ pub struct FileNodeDto {
     pub children: Option<Vec<FileNodeDto>>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TreeResponse {
     #[serde(rename = "rootPath")]
     pub root_path: String,
     pub tree: Vec<FileNodeDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ReadFileResult {
     #[serde(rename = "filePath")]
     pub file_path: String,
@@ -105,7 +138,7 @@ pub struct ReadFileResult {
     pub modified_at: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct WriteFileResult {
     pub success: bool,
     #[serde(rename = "filePath")]
@@ -146,7 +179,7 @@ pub struct CreateItemPayload {
 }
 
 // ---------------------------------------------------------------------------
-// File System Core Functions (Shared by REST & CLI)
+// File System Core Functions (Shared by REST & Desktop Tauri IPC)
 // ---------------------------------------------------------------------------
 
 pub fn build_tree_recursive(dir_path: &Path, root_path: &Path, depth: usize) -> Vec<FileNodeDto> {
@@ -209,47 +242,139 @@ pub fn build_tree_recursive(dir_path: &Path, root_path: &Path, depth: usize) -> 
     nodes
 }
 
+pub fn browse_directory_core(dir: Option<String>) -> Result<BrowseResult, String> {
+    let base = match dir {
+        Some(d) if !d.trim().is_empty() => PathBuf::from(d),
+        _ => get_base_dir(),
+    };
+
+    let canonical = base.canonicalize().unwrap_or(base.clone());
+    if !canonical.exists() || !canonical.is_dir() {
+        return Err(format!("Path is not a valid directory: {}", canonical.display()));
+    }
+
+    let mut dirs = Vec::new();
+    if let Ok(entries) = fs::read_dir(&canonical) {
+        for entry in entries.flatten() {
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_dir() {
+                    dirs.push(entry.file_name().to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    dirs.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+
+    let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
+
+    Ok(BrowseResult {
+        exists: true,
+        current_path: canonical.to_string_lossy().to_string(),
+        parent_path,
+        directories: dirs,
+        workspace_root: get_base_dir().to_string_lossy().to_string(),
+    })
+}
+
+pub fn read_tree_core(root: Option<String>) -> Result<TreeResponse, String> {
+    let target_root = match root {
+        Some(r) if !r.trim().is_empty() => PathBuf::from(r),
+        _ => get_base_dir(),
+    };
+
+    let canonical = target_root.canonicalize().unwrap_or(target_root);
+    if !canonical.exists() {
+        return Err(format!("Root folder does not exist: {}", canonical.display()));
+    }
+
+    let tree = build_tree_recursive(&canonical, &canonical, 0);
+    Ok(TreeResponse {
+        root_path: canonical.to_string_lossy().to_string(),
+        tree,
+    })
+}
+
+pub fn read_file_core(file_path: String) -> Result<ReadFileResult, String> {
+    let path = PathBuf::from(&file_path);
+    if !path.exists() || !path.is_file() {
+        return Err(format!("File not found: {}", file_path));
+    }
+
+    let meta = fs::metadata(&path).map_err(|e| e.to_string())?;
+    if meta.len() > 5 * 1024 * 1024 {
+        return Err("File too large (exceeds 5MB limit)".to_string());
+    }
+
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let ext = path
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
+        .unwrap_or_default();
+
+    Ok(ReadFileResult {
+        file_path,
+        content,
+        size: meta.len(),
+        extension: ext,
+        modified_at: chrono::Utc::now().to_rfc3339(),
+    })
+}
+
+pub fn write_file_core(file_path: String, content: String) -> Result<WriteFileResult, String> {
+    let path = PathBuf::from(&file_path);
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+
+    let tmp = path.with_extension("cmtmp");
+    fs::write(&tmp, &content).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
+
+    let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+
+    Ok(WriteFileResult {
+        success: true,
+        file_path,
+        size,
+        saved_at: chrono::Utc::now().to_rfc3339(),
+    })
+}
+
+pub fn create_item_core(target_path: String, is_directory: bool) -> Result<bool, String> {
+    let path = PathBuf::from(&target_path);
+    if path.exists() {
+        return Err("File or directory already exists".to_string());
+    }
+
+    if is_directory {
+        fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+    } else {
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+        }
+        fs::write(&path, "").map_err(|e| e.to_string())?;
+    }
+    Ok(true)
+}
+
 // ---------------------------------------------------------------------------
 // REST API Handlers
 // ---------------------------------------------------------------------------
 
 async fn get_data() -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let file_path = get_projects_file();
-    if !file_path.exists() {
-        let default_val = serde_json::json!({
-            "projects": [],
-            "features": [],
-            "tasks": [],
-            "viewLayout": "tree"
-        });
-        return Ok(Json(default_val));
-    }
-
-    let content = fs::read_to_string(&file_path)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Read error: {}", e)))?;
-    let json: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("JSON parse error: {}", e)))?;
-
-    Ok(Json(json))
+    read_projects_data()
+        .map(Json)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
 }
 
 async fn save_data(Json(payload): Json<serde_json::Value>) -> Result<StatusCode, (StatusCode, String)> {
-    let file_path = get_projects_file();
-    if let Some(parent) = file_path.parent() {
-        if !parent.exists() {
-            let _ = fs::create_dir_all(parent);
-        }
-    }
-
-    let tmp_path = file_path.with_extension("tmp");
-    let content = serde_json::to_string_pretty(&payload)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Serialization error: {}", e)))?;
-    fs::write(&tmp_path, content)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Write error: {}", e)))?;
-    fs::rename(&tmp_path, &file_path)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Rename error: {}", e)))?;
-
-    Ok(StatusCode::OK)
+    write_projects_data(&payload)
+        .map(|_| StatusCode::OK)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
 }
 
 async fn export_data() -> Result<Response, (StatusCode, String)> {
@@ -309,142 +434,38 @@ async fn save_prompts(Json(payload): Json<serde_json::Value>) -> Result<StatusCo
     Ok(StatusCode::OK)
 }
 
-// ---------------------------------------------------------------------------
-// File System Endpoints
-// ---------------------------------------------------------------------------
-
 async fn fs_browse(Query(query): Query<BrowseQuery>) -> Result<Json<BrowseResult>, (StatusCode, String)> {
-    let base = match query.dir {
-        Some(d) if !d.trim().is_empty() => PathBuf::from(d),
-        _ => get_base_dir(),
-    };
-
-    let canonical = base.canonicalize().unwrap_or(base.clone());
-    if !canonical.exists() || !canonical.is_dir() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!("Path is not a valid directory: {}", canonical.display()),
-        ));
-    }
-
-    let mut dirs = Vec::new();
-    if let Ok(entries) = fs::read_dir(&canonical) {
-        for entry in entries.flatten() {
-            if let Ok(file_type) = entry.file_type() {
-                if file_type.is_dir() {
-                    dirs.push(entry.file_name().to_string_lossy().to_string());
-                }
-            }
-        }
-    }
-    dirs.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
-
-    let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
-
-    Ok(Json(BrowseResult {
-        exists: true,
-        current_path: canonical.to_string_lossy().to_string(),
-        parent_path,
-        directories: dirs,
-        workspace_root: get_base_dir().to_string_lossy().to_string(),
-    }))
+    browse_directory_core(query.dir)
+        .map(Json)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))
 }
 
 async fn fs_tree(Query(query): Query<TreeQuery>) -> Result<Json<TreeResponse>, (StatusCode, String)> {
-    let target_root = match query.root {
-        Some(r) if !r.trim().is_empty() => PathBuf::from(r),
-        _ => get_base_dir(),
-    };
-
-    let canonical = target_root.canonicalize().unwrap_or(target_root);
-    if !canonical.exists() {
-        return Err((
-            StatusCode::NOT_FOUND,
-            format!("Root folder does not exist: {}", canonical.display()),
-        ));
-    }
-
-    let tree = build_tree_recursive(&canonical, &canonical, 0);
-    Ok(Json(TreeResponse {
-        root_path: canonical.to_string_lossy().to_string(),
-        tree,
-    }))
+    read_tree_core(query.root)
+        .map(Json)
+        .map_err(|e| (StatusCode::NOT_FOUND, e))
 }
 
 async fn fs_read(Query(query): Query<ReadFileQuery>) -> Result<Json<ReadFileResult>, (StatusCode, String)> {
-    let file_path = match query.path {
+    let path = match query.path {
         Some(p) if !p.trim().is_empty() => p,
-        _ => return Err((StatusCode::BAD_REQUEST, "Missing file path query parameter".to_string())),
+        _ => return Err((StatusCode::BAD_REQUEST, "Missing path query parameter".to_string())),
     };
-
-    let path = PathBuf::from(&file_path);
-    if !path.exists() || !path.is_file() {
-        return Err((StatusCode::NOT_FOUND, format!("File not found: {}", file_path)));
-    }
-
-    let meta = fs::metadata(&path).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    if meta.len() > 5 * 1024 * 1024 {
-        return Err((StatusCode::PAYLOAD_TOO_LARGE, "File too large (exceeds 5MB limit)".to_string()));
-    }
-
-    let content = fs::read_to_string(&path)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file: {}", e)))?;
-    let ext = path
-        .extension()
-        .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
-        .unwrap_or_default();
-
-    Ok(Json(ReadFileResult {
-        file_path,
-        content,
-        size: meta.len(),
-        extension: ext,
-        modified_at: chrono::Utc::now().to_rfc3339(),
-    }))
+    read_file_core(path)
+        .map(Json)
+        .map_err(|e| (StatusCode::NOT_FOUND, e))
 }
 
 async fn fs_write(Json(payload): Json<WriteFilePayload>) -> Result<Json<WriteFileResult>, (StatusCode, String)> {
-    let path = PathBuf::from(&payload.file_path);
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        }
-    }
-
-    let tmp = path.with_extension("cmtmp");
-    fs::write(&tmp, &payload.content)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Write error: {}", e)))?;
-    fs::rename(&tmp, &path)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Rename error: {}", e)))?;
-
-    let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-
-    Ok(Json(WriteFileResult {
-        success: true,
-        file_path: payload.file_path,
-        size,
-        saved_at: chrono::Utc::now().to_rfc3339(),
-    }))
+    write_file_core(payload.file_path, payload.content)
+        .map(Json)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
 }
 
 async fn fs_create(Json(payload): Json<CreateItemPayload>) -> Result<Json<bool>, (StatusCode, String)> {
-    let path = PathBuf::from(&payload.target_path);
-    if path.exists() {
-        return Err((StatusCode::CONFLICT, "File or directory already exists".to_string()));
-    }
-
-    if payload.is_directory {
-        fs::create_dir_all(&path).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    } else {
-        if let Some(parent) = path.parent() {
-            if !parent.exists() {
-                fs::create_dir_all(parent).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-            }
-        }
-        fs::write(&path, "").map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    }
-
-    Ok(Json(true))
+    create_item_core(payload.target_path, payload.is_directory)
+        .map(Json)
+        .map_err(|e| (StatusCode::CONFLICT, e))
 }
 
 // ---------------------------------------------------------------------------
@@ -452,18 +473,16 @@ async fn fs_create(Json(payload): Json<CreateItemPayload>) -> Result<Json<bool>,
 // ---------------------------------------------------------------------------
 
 pub async fn run_server(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let mut port: u16 = 4000; // Default to port 4000 to avoid collision with Vite (3000)
+    let mut port: u16 = 4000;
     let mut host = "127.0.0.1".to_string();
     let mut open_browser = false;
 
-    // Check environment variable PORT
     if let Ok(p_str) = std::env::var("PORT") {
         if let Ok(p) = p_str.parse::<u16>() {
             port = p;
         }
     }
 
-    // Parse command-line args
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -492,7 +511,6 @@ pub async fn run_server(args: Vec<String>) -> Result<(), Box<dyn std::error::Err
     let web_dir = get_web_dir();
     let index_file = web_dir.join("index.html");
 
-    // Build Axum Router with all data + file system routes and static asset fallback
     let app = Router::new()
         .route("/api/data", get(get_data).post(save_data))
         .route("/api/data/export", get(export_data))
