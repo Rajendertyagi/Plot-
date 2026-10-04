@@ -69,6 +69,58 @@ app.get('/api/data/export', (req, res) => {
 // File System & Repository Explorer Endpoints
 // -------------------------------------------------------------
 
+// Helper to get all permissible root directories (workspace cwd + active projects)
+function getAllowedRoots(): string[] {
+  const roots: string[] = [path.resolve(process.cwd())];
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data.projects)) {
+        for (const proj of data.projects) {
+          if (proj.rootDirectory && typeof proj.rootDirectory === 'string') {
+            const resolved = path.resolve(proj.rootDirectory);
+            if (fs.existsSync(resolved)) {
+              roots.push(resolved);
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore JSON read errors during fallback
+  }
+  return roots;
+}
+
+const FORBIDDEN_ROOT_PREFIXES = [
+  '/etc', '/var', '/usr', '/bin', '/sbin', '/boot', '/proc', '/sys', '/dev',
+  'c:\\windows', 'c:\\program files', 'c:\\program files (x86)', 'c:\\programdata'
+];
+
+function isPathAllowed(targetPath: string): boolean {
+  const resolved = path.resolve(targetPath);
+  const normalized = path.normalize(resolved).toLowerCase();
+
+  // Block sensitive OS and system folders
+  for (const forbidden of FORBIDDEN_ROOT_PREFIXES) {
+    if (normalized === forbidden || normalized.startsWith(forbidden + path.sep)) {
+      return false;
+    }
+  }
+
+  // Ensure path is within workspace root or any registered project directory
+  const allowedRoots = getAllowedRoots();
+  for (const root of allowedRoots) {
+    const normRoot = path.normalize(root).toLowerCase();
+    if (normalized === normRoot || normalized.startsWith(normRoot + path.sep)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Helper to safely resolve path
 function resolveSafePath(inputPath?: string): string {
   if (!inputPath || inputPath.trim() === '') {
@@ -217,6 +269,10 @@ app.get('/api/fs/tree', (req, res) => {
     const rootQuery = req.query.root as string | undefined;
     const rootPath = resolveSafePath(rootQuery);
 
+    if (!isPathAllowed(rootPath)) {
+      return res.status(403).json({ error: 'Access denied: Root directory is outside allowed project boundaries' });
+    }
+
     if (!fs.existsSync(rootPath)) {
       return res.status(404).json({ error: `Root directory does not exist: ${rootPath}` });
     }
@@ -241,6 +297,10 @@ app.get('/api/fs/read', (req, res) => {
     }
 
     const resolved = path.resolve(filePath);
+    if (!isPathAllowed(resolved)) {
+      return res.status(403).json({ error: 'Access denied: Target path is outside allowed project boundaries' });
+    }
+
     if (!fs.existsSync(resolved)) {
       return res.status(404).json({ error: `File not found: ${resolved}` });
     }
@@ -277,6 +337,10 @@ app.post('/api/fs/write', (req, res) => {
     }
 
     const resolved = path.resolve(filePath);
+    if (!isPathAllowed(resolved)) {
+      return res.status(403).json({ error: 'Access denied: Target path is outside allowed project boundaries' });
+    }
+
     const parent = path.dirname(resolved);
 
     if (!fs.existsSync(parent)) {
@@ -310,6 +374,9 @@ app.post('/api/fs/create', (req, res) => {
       return res.status(400).json({ error: 'targetPath is required' });
     }
     const resolved = path.resolve(targetPath);
+    if (!isPathAllowed(resolved)) {
+      return res.status(403).json({ error: 'Access denied: Target path is outside allowed project boundaries' });
+    }
 
     if (fs.existsSync(resolved)) {
       return res.status(409).json({ error: 'File or folder already exists at path' });

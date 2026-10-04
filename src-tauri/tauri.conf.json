@@ -10,7 +10,7 @@
   "app": {
     "windows": [
       {
-        "title": "ProjectFlow — Project & Task Manager",
+        "title": "ProjectFlow - Project & Task Manager",
         "width": 1360,
         "height": 860,
         "minWidth": 960,

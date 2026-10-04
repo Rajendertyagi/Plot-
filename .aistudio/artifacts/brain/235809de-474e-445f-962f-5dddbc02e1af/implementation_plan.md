@@ -1,89 +1,59 @@
-# Windows x64 Dual-Mode Architecture: Port 4000 & External 'web/' Folder
+# Fix Plan: Windows Icon Resource, Encoding, Build Order & Security Containment
 
-Customized specifically for your Windows x64 environment:
-- **Port 4000**: Web Mode runs on `http://localhost:4000`.
-- **External `web/` Folder Next to `.exe`**: Built frontend assets (`dist/` renamed to `web/`) sit cleanly alongside the executable in the portable folder.
-- **Zero Docker**: 100% native Windows processes.
-- **Zero AppData**: All user profiles, webview storage, and project data are self-contained in `./data/`.
-- **Automated CI/CD**: GitHub Actions workflow builds the frontend using **Bun**, compiles the binary, and outputs a ready-to-run portable `.zip`.
+Detailed analysis and fix plan for the `icon.ico` build failure and all 4 reported issues:
 
 ---
 
-## 1. Portable Folder Layout (Windows x64)
+## 1. Issue Analysis & Confirmed Solutions
 
-Inside `projectflow-windows-x64-portable.zip`:
+### Issue 0 (The Fatal Build Crash): `src-tauri/icons/icon.ico` not found
+- **Cause**: On Windows, `tauri-build` compiles a native `.rc` (Windows Resource) file embedding the application icon into `projectflow.exe`. If `src-tauri/icons/icon.ico` does not exist, `tauri-build` aborts compilation with exit code 1.
+- **Fix**: Generate and commit valid multi-resolution Windows `icon.ico` (256x256, 128x128, 64x64, 48x48, 32x32, 16x16) and companion PNGs (`icon.png`, `32x32.png`, `128x128.png`, `Square150x150Logo.png`) into `src-tauri/icons/`.
 
-```
-projectflow-windows-x64-portable/
-├── projectflow.exe          # Native Windows x64 executable (~8MB)
-├── web/                     # Built frontend assets (next to the .exe)
-│   ├── index.html
-│   └── assets/
-│       ├── index.js
-│       └── index.css
-├── data/                    # 100% self-contained data (Zero AppData)
-│   ├── projects.json        # Projects, roadmap, features, and tasks
-│   └── webview/             # Isolated WebView2 cache & local storage
-├── start-web-mode.bat       # One-click launcher for Web Mode (port 4000)
-├── start-desktop-mode.bat   # One-click launcher for Native Desktop Window
-└── README.txt               # Quickstart guide
-```
+### Issue 1: Mojibake in `tauri.conf.json` window title
+- **Cause**: The em-dash `—` (`\u2014`) in `"ProjectFlow — Project & Task Manager"` is parsed by the Windows MSVC resource compiler and CMD without UTF-8 codepage guarantees, rendering as `?` on Windows.
+- **Fix**: Replace em-dash with standard ASCII: `"ProjectFlow - Project & Task Manager"`.
 
----
+### Issue 2: `frontendDist` vs `dist/` vs `web/`
+- **Cause**: If `frontendDist` points to `../web` while Vite outputs to `dist/`, `cargo build` fails unless `web/` already exists.
+- **Fix**:
+  - In `tauri.conf.json`: Set `"frontendDist": "../dist"`.
+  - In CI & local packaging: `bun run build` generates `dist/`, `cargo build` reads `dist/`, and then the packaging step copies `dist/` into `web/` directly next to `projectflow.exe`.
 
-## 2. Dual-Mode Operation (Port 4000)
+### Issue 3: Unused `tokio` and `walkdir` in `Cargo.toml`
+- **Cause**: `tokio = { features = ["full"] }` and `walkdir` add 50+ unnecessary crates and several minutes of CI compile time. Tauri v2 already embeds its own internal runtime, and `main.rs` uses synchronous standard library `std::fs`.
+- **Fix**: Remove `tokio` and `walkdir` from `src-tauri/Cargo.toml`. Retain only `tauri`, `serde`, `serde_json`, and `chrono`.
 
-1. **Web Mode (Browser on Port 4000)**:
-   - Launches a lightweight web server bound to `http://localhost:4000`.
-   - Serves the adjacent `./web` folder and handles REST endpoints (`/api/data`, `/api/fs/*`).
-   - Open any browser (Chrome, Edge, Firefox) at `http://localhost:4000`.
-   - Accessible to other devices on your local Wi-Fi / LAN if desired.
-
-2. **Desktop Mode (Native Window)**:
-   - Runs `projectflow.exe` directly.
-   - Loads the interface from the local `./web` folder via Windows native Edge WebView2.
-   - User data and WebView2 cache are isolated strictly to `./data/webview/`.
-   - Requires zero Node, Bun, or Python on the user's machine.
+### Issue 4: Path Traversal Vulnerability in `server.ts`
+- **Cause**: `/api/fs/read`, `/api/fs/write`, and `/api/fs/create` accept arbitrary file paths. If Web Mode is hosted on port 4000 across a local network, any connected user could read or overwrite system files outside the intended project.
+- **Fix**:
+  - Implement a strict `isPathWithinAllowedRoots(targetPath, allowedRoots)` helper.
+  - Allowed roots include the current working directory (`process.cwd()`) and any registered `rootDirectory` paths from the user's projects in `data/projects.json`.
+  - Reject paths trying to climb out using `..` or targeting forbidden system directories (e.g. `C:\Windows`, `/etc`, root).
 
 ---
 
-## 3. GitHub Actions CI/CD Workflow (`.github/workflows/build-portable.yml`)
+## 2. Implementation Steps
 
-The automated workflow:
-- **Runner**: `windows-latest`
-- **Build Tool**: **Bun** (`oven-sh/setup-bun@v2`) for ultra-fast dependency installation and compilation.
-- **Rust Toolchain**: `dtolnay/rust-toolchain@stable` + `Swatinem/rust-cache@v2`.
-- **Pipeline Steps**:
-  1. `bun install`
-  2. `bun run build` (outputs to `dist/`)
-  3. Compile Windows x64 executable.
-  4. Assemble portable package:
-     - Copy executable to `projectflow-windows-x64-portable/`
-     - Copy `dist/` as `web/` directly next to `projectflow.exe`
-     - Create initialized `data/` directory
-     - Add `start-web-mode.bat` and `start-desktop-mode.bat` launchers configured for port 4000
-  5. Compress into `projectflow-windows-x64-portable.zip`
-  6. Publish release on GitHub.
+1. **Icons Generation**:
+   - Create `scripts/generate-icons.js` to create valid, compliant ICO and PNG assets in `src-tauri/icons/`.
+   - Run the script so `src-tauri/icons/icon.ico` and standard icons exist in the repository.
 
----
+2. **`src-tauri/tauri.conf.json` Clean-up**:
+   - Change window title to ASCII `"ProjectFlow - Project & Task Manager"`.
+   - Set `"frontendDist": "../dist"`.
+   - Ensure `"bundle": { "active": false }`.
 
-## 4. Key Files to Implement
+3. **`src-tauri/Cargo.toml` Streamlining**:
+   - Remove `tokio = { version = "1", features = ["full"] }`.
+   - Remove `walkdir = "2"`.
+   - Keep only essential, lightweight dependencies.
 
-1. **`src-tauri/tauri.conf.json` & `src-tauri/src/main.rs`**:
-   - Configures the desktop app to load assets from the adjacent `../web` folder.
-   - Pins WebView2 user data to `./data/webview`.
-   - Provides native local file system operations.
-2. **`server.ts` & Port 4000 Support**:
-   - Updates server port configuration to default to `4000` (with env override support).
-   - Configures static file serving from `./web` when running in standalone mode.
-3. **`src/services/fsApi.ts`**:
-   - Seamless dual-mode detection (uses desktop IPC when running natively, or `http://localhost:4000/api/*` in web mode).
-4. **`.github/workflows/build-portable.yml`**:
-   - Complete GitHub Actions workflow with Bun and Windows x64 zip packaging.
-5. **Launcher Batch Scripts**:
-   - `start-web-mode.bat` and `start-desktop-mode.bat` for instant double-click execution on Windows.
+4. **Security Hardening in `server.ts`**:
+   - Add boundary validation so all file system reads, writes, and listings stay strictly within legitimate project roots.
+   - Return clean 403 Forbidden responses when an out-of-bounds path is requested.
 
 ---
 
-## 5. User Review & Approval
-Please click **Proceed** to implement the port 4000 configuration, external `web/` folder structure, Tauri v2 scaffold, and GitHub Actions workflow.
+## 3. User Review & Approval
+Please click **Proceed** to implement the icon generation, Cargo.toml cleanup, tauri.conf.json fix, and path traversal security boundary.

@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "package:portable": "node scripts/package-portable.js",
+    "icons:generate": "node scripts/generate-icons.js",
     "clean": "rm -rf dist web projectflow-windows-x64-portable",
     "lint": "tsc --noEmit"
   },
