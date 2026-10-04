@@ -12,7 +12,7 @@ const dataDir = path.join(targetDir, 'data');
 const webviewDir = path.join(dataDir, 'webview');
 const distDir = path.join(rootDir, 'dist');
 
-console.log('🚀 Assembling 100% Self-Contained Portable Windows Package...');
+console.log('[INFO] Assembling 100% Self-Contained Portable Windows Package...');
 
 // 1. Ensure target structure exists and clean web/
 if (fs.existsSync(webDir)) {
@@ -25,9 +25,9 @@ fs.mkdirSync(webviewDir, { recursive: true });
 // 2. Copy dist assets into web/ next to the exe
 if (fs.existsSync(distDir)) {
   fs.cpSync(distDir, webDir, { recursive: true });
-  console.log('✅ Web assets copied to ./web (placed next to executable)');
+  console.log('[OK] Web assets copied to ./web (placed next to executable)');
 } else {
-  console.warn('⚠️ "dist" folder not found. Please run "npm run build" or "bun run build" first.');
+  console.warn('[WARN] "dist" folder not found. Please run "bun run build" first.');
 }
 
 // 3. Initialize data/projects.json and data/prompts.json
@@ -48,7 +48,7 @@ const sourcePromptsJson = path.join(rootDir, 'data', 'prompts.json');
 if (fs.existsSync(sourcePromptsJson)) {
   fs.copyFileSync(sourcePromptsJson, targetPromptsJson);
 }
-console.log('✅ Local data isolated in ./data (projects.json & prompts.json)');
+console.log('[OK] Local data isolated in ./data (projects.json and prompts.json)');
 
 // 4. Copy launcher scripts and documentation
 const filesToCopy = [
@@ -64,7 +64,7 @@ for (const file of filesToCopy) {
     fs.copyFileSync(src, dest);
   }
 }
-console.log('✅ Launchers & configs copied into portable package');
+console.log('[OK] Launchers and configs copied into portable package');
 
 // 5. Copy executable if already built by cargo/tauri
 const candidateExes = [
@@ -75,7 +75,7 @@ let exeFound = false;
 for (const exe of candidateExes) {
   if (fs.existsSync(exe)) {
     fs.copyFileSync(exe, path.join(targetDir, 'projectflow.exe'));
-    console.log(`✅ projectflow.exe copied from ${exe} into portable package`);
+    console.log(`[OK] projectflow.exe copied from ${exe} into portable package`);
     exeFound = true;
     break;
   }
@@ -83,11 +83,11 @@ for (const exe of candidateExes) {
 
 if (!exeFound) {
   if (process.env.CI) {
-    throw new Error('❌ Fatal in CI: projectflow.exe was not found in release target directories.');
+    throw new Error('[FATAL] CI Error: projectflow.exe was not found in release target directories.');
   } else {
-    console.log('ℹ️ projectflow.exe will be placed here automatically when compiled by GitHub Actions or "cargo build --release"');
+    console.log('[INFO] projectflow.exe will be placed here automatically when compiled by GitHub Actions or "cargo build --release"');
   }
 }
 
-console.log('\n🎉 Self-contained package layout prepared:');
+console.log('\n[DONE] Self-contained package layout prepared:');
 console.log(targetDir);

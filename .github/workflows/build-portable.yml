@@ -53,9 +53,36 @@ jobs:
         run: bun run tauri build --no-bundle
 
       - name: Assemble Self-Contained Portable Directory Structure
-        run: bun run package:portable
-        env:
-          CI: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "projectflow-windows-x64-portable\web" | Out-Null
+          New-Item -ItemType Directory -Force -Path "projectflow-windows-x64-portable\data\webview" | Out-Null
+
+          # Copy compiled web assets
+          Copy-Item -Path "dist\*" -Destination "projectflow-windows-x64-portable\web" -Recurse -Force
+
+          # Copy initial data stores
+          Copy-Item -Path "data\projects.json" -Destination "projectflow-windows-x64-portable\data\projects.json" -Force
+          Copy-Item -Path "data\prompts.json" -Destination "projectflow-windows-x64-portable\data\prompts.json" -Force
+
+          # Copy launchers and documents
+          Copy-Item -Path "start-web-mode.bat" -Destination "projectflow-windows-x64-portable\" -Force
+          Copy-Item -Path "start-desktop-mode.bat" -Destination "projectflow-windows-x64-portable\" -Force
+          Copy-Item -Path "README.txt" -Destination "projectflow-windows-x64-portable\" -Force
+          Copy-Item -Path "package.json" -Destination "projectflow-windows-x64-portable\" -Force
+
+          # Copy compiled Tauri executable
+          if (Test-Path "src-tauri\target\release\projectflow.exe") {
+            Copy-Item -Path "src-tauri\target\release\projectflow.exe" -Destination "projectflow-windows-x64-portable\projectflow.exe" -Force
+            Write-Host "[OK] Copied projectflow.exe from src-tauri\target\release"
+          } elseif (Test-Path "target\release\projectflow.exe") {
+            Copy-Item -Path "target\release\projectflow.exe" -Destination "projectflow-windows-x64-portable\projectflow.exe" -Force
+            Write-Host "[OK] Copied projectflow.exe from target\release"
+          } else {
+            Write-Error "[FATAL] projectflow.exe was not found in release target directories."
+            exit 1
+          }
+          Write-Host "[DONE] Self-contained portable structure assembled successfully."
 
       - name: Compress into Portable ZIP for GitHub Releases
         shell: pwsh

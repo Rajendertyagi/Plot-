@@ -1,49 +1,38 @@
 @echo off
 setlocal
-title ProjectFlow Web Server (Port 4000)
+title ProjectFlow Web Server
+cd /d "%~dp0"
 
 echo =======================================================
-echo          ProjectFlow - Web Mode (Port 4000)
+echo          ProjectFlow - Native Web Server Mode
 echo =======================================================
 echo.
 
-set PORT=4000
-set NODE_ENV=production
-set APP_DIR=%~dp0
+if exist "projectflow.exe" (
+    echo [INFO] Starting native high-performance Rust web server...
+    echo [INFO] Opening default browser at http://localhost:3000...
+    echo.
+    projectflow.exe --server --open
+    goto end
+)
 
-echo Starting Web Mode on port 4000...
-echo.
-
-REM Delayed browser opener (waits 2 seconds for server to bind port)
-start "" cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:4000"
-
-REM 1. Prefer Bun if available (instant, zero configuration)
+REM Fallback for development environments before binary compilation
 where bun >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo [OK] Using Bun runtime...
-    cd /d "%APP_DIR%"
-    bun x vite preview --port 4000
+    echo [DEV] Binary not found, launching with Bun...
+    bun x vite preview --port 3000
     goto end
 )
 
-REM 2. Fallback to Node.js / npx vite
 where node >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo [OK] Using Node.js runtime...
-    cd /d "%APP_DIR%"
-    npx vite preview --port 4000
+    echo [DEV] Binary not found, launching with Node/npx...
+    npx vite preview --port 3000
     goto end
 )
 
-echo.
-echo [Notice] Neither Bun nor Node.js was found on your Windows PATH.
-echo.
-echo - For Desktop Mode (Zero runtime needed, 100% standalone):
-echo   Double-click "projectflow.exe" or "start-desktop-mode.bat"
-echo.
-echo - For Web Mode:
-echo   Install Bun from https://bun.sh or Node.js from https://nodejs.org
-echo.
+echo [ERROR] projectflow.exe not found.
+echo Please run the executable directly or build it with: bun run tauri build
 pause
 
 :end

@@ -1,7 +1,6 @@
 import { AppDataPayload, PromptTemplate } from '../types';
 import { isTauriDesktop, invokeDesktopCommand } from './environment';
-import initialProjectsData from '../../data/projects.json';
-import initialPromptsData from '../../data/prompts.json';
+import { initialProjectsData, initialPromptsData } from '../data/initialData';
 
 const STORAGE_KEY = 'projectflow_data_v1';
 const PROMPTS_STORAGE_KEY = 'projectflow_prompts_v1';
@@ -9,26 +8,46 @@ const PROMPTS_STORAGE_KEY = 'projectflow_prompts_v1';
 export const apiService = {
   /**
    * Fetch all application data.
-   * - In Desktop mode: reads from isolated ./data/projects.json via native Rust IPC
-   * - In Web mode: reads from localStorage (seeded with default data on first run)
+   * Priority order:
+   * 1. Desktop Mode: native Tauri IPC (`load_project_data`) -> writes/reads ./data/projects.json
+   * 2. Web Server Mode: Axum REST API (`GET /api/data`)
+   * 3. Static/Offline Mode: browser localStorage (seeded with default bundled data)
    */
   async fetchData(): Promise<AppDataPayload | null> {
     // 1. Desktop Mode (Native Tauri)
     if (isTauriDesktop()) {
       try {
         const data = await invokeDesktopCommand<AppDataPayload>('load_project_data');
-        if (data) {
+        if (data && data.projects) {
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
           } catch {}
           return data;
         }
       } catch (err) {
-        console.warn('Native desktop data load failed, falling back to local snapshot:', err);
+        console.warn('Native desktop data load failed, checking fallback:', err);
       }
     }
 
-    // 2. Web Mode (Browser LocalStorage with seed fallback)
+    // 2. Web Server Mode (Axum REST API /api/data)
+    try {
+      const res = await fetch('/api/data', {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as AppDataPayload;
+        if (data && Array.isArray(data.projects) && data.projects.length > 0) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          } catch {}
+          return data;
+        }
+      }
+    } catch {
+      // Server not reachable (static offline preview), fall through to localStorage
+    }
+
+    // 3. Web Mode (Browser LocalStorage with seed fallback)
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -54,10 +73,11 @@ export const apiService = {
   /**
    * Save state payload.
    * - In Desktop mode: writes to ./data/projects.json next to .exe via native Rust IPC
-   * - In Web mode: writes to localStorage
+   * - In Web Server mode: posts to /api/data
+   * - Always updates local cache in localStorage
    */
   async saveData(payload: AppDataPayload): Promise<boolean> {
-    // 1. Save to local browser storage
+    // 1. Save to local browser cache
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
@@ -72,6 +92,20 @@ export const apiService = {
       } catch (err) {
         console.warn('Desktop native save failed:', err);
       }
+    }
+
+    // 3. Web Server Mode (Axum REST API)
+    try {
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        return true;
+      }
+    } catch {
+      // Ignored if purely offline static mode
     }
 
     return true;
@@ -94,6 +128,25 @@ export const apiService = {
    * Fetch all global prompt templates
    */
   async fetchPrompts(): Promise<PromptTemplate[]> {
+    // 1. Check Web Server API
+    try {
+      const res = await fetch('/api/prompts', {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const templates = (await res.json()) as PromptTemplate[];
+        if (Array.isArray(templates) && templates.length > 0) {
+          try {
+            localStorage.setItem(PROMPTS_STORAGE_KEY, JSON.stringify(templates));
+          } catch {}
+          return templates;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    // 2. LocalStorage cache
     try {
       const stored = localStorage.getItem(PROMPTS_STORAGE_KEY);
       if (stored) {
@@ -116,11 +169,22 @@ export const apiService = {
   async savePrompts(templates: PromptTemplate[]): Promise<boolean> {
     try {
       localStorage.setItem(PROMPTS_STORAGE_KEY, JSON.stringify(templates));
-      return true;
     } catch (error) {
       console.error('Failed to save prompts to storage:', error);
-      return false;
     }
+
+    // Push to Web Server API if available
+    try {
+      await fetch('/api/prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(templates),
+      });
+    } catch {
+      // Ignore network errors in offline mode
+    }
+
+    return true;
   },
 
   /**
@@ -136,5 +200,3 @@ export const apiService = {
     }
   },
 };
-
-

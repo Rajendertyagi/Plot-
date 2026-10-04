@@ -174,7 +174,7 @@ function generateIco(pngBuffersBySize) {
   return Buffer.concat([header, ...dirBuffers, ...imageBuffers]);
 }
 
-console.log('🎨 Generating native icon assets for Tauri Windows resource compiler...');
+console.log('[INFO] Generating native icon assets for Tauri Windows resource compiler...');
 
 fs.mkdirSync(iconsDir, { recursive: true });
 
@@ -210,6 +210,6 @@ const icoBuffer = generateIco([
 ]);
 fs.writeFileSync(path.join(iconsDir, 'icon.ico'), icoBuffer);
 
-console.log('✅ Generated icons in src-tauri/icons:');
+console.log('[OK] Generated icons in src-tauri/icons:');
 console.log(' - src-tauri/icons/icon.ico (Windows Resource file requirement)');
-console.log(' - src-tauri/icons/icon.png & companion sizes');
+console.log(' - src-tauri/icons/icon.png and companion sizes');

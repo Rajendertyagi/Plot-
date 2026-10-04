@@ -8,8 +8,8 @@
     "start": "vite preview",
     "build": "vite build",
     "preview": "vite preview",
-    "package:portable": "node scripts/package-portable.js",
-    "icons:generate": "node scripts/generate-icons.js",
+    "package:portable": "bun scripts/package-portable.js",
+    "icons:generate": "bun scripts/generate-icons.js",
     "tauri": "tauri",
     "clean": "rm -rf dist web projectflow-windows-x64-portable",
     "lint": "tsc --noEmit"
