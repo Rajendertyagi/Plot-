@@ -148,7 +148,15 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         isOpen={isFinderOpen}
         initialDirectory={rootDirectory}
         onClose={() => setIsFinderOpen(false)}
-        onSelectDirectory={(selectedPath) => setRootDirectory(selectedPath)}
+        onSelectDirectory={(selectedPath) => {
+          setRootDirectory(selectedPath);
+          if (!title.trim() || title === 'New Project') {
+            const folderName = selectedPath.replace(/[/\\]+$/, '').split(/[/\\]/).pop();
+            if (folderName && folderName !== '.' && folderName !== '..') {
+              setTitle(folderName);
+            }
+          }
+        }}
         title="Locate Project Repository Directory"
       />
     </>

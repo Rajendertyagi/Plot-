@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckSquare, Plus, Trash2, Check, Sparkles, FileCode } from 'lucide-react';
+import { X, CheckSquare, Plus, Trash2, Check, Sparkles, FileCode, BookTemplate } from 'lucide-react';
 import { Task, StatusColumn, Subtask, TaskPriority } from '../../types';
 import { Button } from '../ui/button';
+import { usePromptTemplates } from '../../hooks/usePromptTemplates';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -32,6 +40,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [linkedFilesStr, setLinkedFilesStr] = useState('');
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+
+  const { templates } = usePromptTemplates();
+
+  const handleInsertTemplate = (templateContent: string) => {
+    setAiPromptContext((prev) => {
+      const cleanPrev = prev.trim();
+      if (!cleanPrev) return templateContent;
+      return `${cleanPrev}\n\n${templateContent}`;
+    });
+  };
 
   useEffect(() => {
     if (initialTask) {
@@ -155,7 +173,43 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                 AI Prompt Context & Instructions
               </label>
-              <span className="text-[10px] text-neutral-500">Ready to copy to LLM</span>
+
+              {/* Quick Template Picker */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-indigo-300 hover:text-indigo-100 hover:bg-indigo-950/60 border border-indigo-500/30 transition-colors"
+                  >
+                    <BookTemplate className="w-3 h-3 text-indigo-400" />
+                    <span>Insert Template</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 max-h-60 overflow-y-auto">
+                  <div className="px-2 py-1 text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">
+                    Prompt Templates (prompts.json)
+                  </div>
+                  {templates.map((tpl) => (
+                    <DropdownMenuItem
+                      key={tpl.id}
+                      onClick={() => handleInsertTemplate(tpl.content)}
+                      className="text-xs flex flex-col items-start gap-0.5 cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium text-neutral-200">{tpl.title}</span>
+                        <span className="text-[9px] px-1 rounded bg-neutral-800 text-neutral-400">
+                          {tpl.category}
+                        </span>
+                      </div>
+                      {tpl.description && (
+                        <span className="text-[10px] text-neutral-400 line-clamp-1">
+                          {tpl.description}
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <textarea
               rows={3}

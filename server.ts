@@ -54,6 +54,63 @@ app.post('/api/data', (req, res) => {
   }
 });
 
+const PROMPTS_FILE = path.join(__dirname, 'data', 'prompts.json');
+
+const DEFAULT_PROMPT_TEMPLATES = [
+  {
+    id: 'tpl-impl-plan',
+    title: 'Full Implementation Plan',
+    category: 'Implementation',
+    description: 'Inspect codebase, evaluate patterns, and propose a concise plan before writing code',
+    content: 'Please inspect the relevant codebase files, check for existing patterns, formulate a concise implementation plan, and verify all imports and typings before generating code.',
+    createdAt: '2026-10-04',
+    isBuiltIn: true,
+  },
+  {
+    id: 'tpl-code-review',
+    title: 'Code Review & Security Audit',
+    category: 'Review',
+    description: 'Audit code for edge cases, null checks, security vulnerabilities, and typing standards',
+    content: 'Review the proposed code changes for: 1) Strict TypeScript types without any shortcuts, 2) Proper null/undefined checks, 3) Token/credential leak prevention, 4) Performance & rendering overhead.',
+    createdAt: '2026-10-04',
+    isBuiltIn: true,
+  },
+  {
+    id: 'tpl-unit-tests',
+    title: 'Unit & Integration Tests',
+    category: 'Testing',
+    description: 'Generate comprehensive test cases covering positive and edge paths',
+    content: 'Generate complete unit and integration tests covering the acceptance criteria checklist, edge cases, error conditions, and mocks for external services.',
+    createdAt: '2026-10-04',
+    isBuiltIn: true,
+  },
+  {
+    id: 'tpl-bugfix',
+    title: 'Bugfix & Root Cause Diagnosis',
+    category: 'Debugging',
+    description: 'Diagnose failure points and apply minimal robust fixes',
+    content: 'Analyze the error stack trace, diagnose the root cause, identify affected files, and apply a minimal, non-breaking fix with regression guards.',
+    createdAt: '2026-10-04',
+    isBuiltIn: true,
+  },
+  {
+    id: 'tpl-refactor',
+    title: 'Clean Modular Refactor',
+    category: 'Architecture',
+    description: 'Decompose monolithic files into single-responsibility modules and pure utilities',
+    content: 'Refactor this component into decoupled single-responsibility modules with explicit TypeScript interfaces, pure utility functions, and zero circular dependencies.',
+    createdAt: '2026-10-04',
+    isBuiltIn: true,
+  },
+];
+
+function initPromptsFile() {
+  if (!fs.existsSync(PROMPTS_FILE)) {
+    fs.writeFileSync(PROMPTS_FILE, JSON.stringify(DEFAULT_PROMPT_TEMPLATES, null, 2), 'utf-8');
+  }
+}
+initPromptsFile();
+
 app.get('/api/data/export', (req, res) => {
   try {
     if (!fs.existsSync(DATA_FILE)) {
@@ -62,6 +119,48 @@ app.get('/api/data/export', (req, res) => {
     res.download(DATA_FILE, 'projectflow-backup.json');
   } catch (error) {
     res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+// -------------------------------------------------------------
+// REST Endpoints for Prompts JSON persistence (data/prompts.json)
+// -------------------------------------------------------------
+app.get('/api/prompts', (req, res) => {
+  try {
+    initPromptsFile();
+    const raw = fs.readFileSync(PROMPTS_FILE, 'utf-8');
+    const prompts = JSON.parse(raw);
+    res.json(prompts);
+  } catch (error) {
+    console.error('Error reading prompts JSON from disk:', error);
+    res.status(500).json({ error: 'Failed to read prompts from disk' });
+  }
+});
+
+app.post('/api/prompts', (req, res) => {
+  try {
+    const templates = req.body;
+    if (!Array.isArray(templates)) {
+      return res.status(400).json({ error: 'Payload must be an array of prompt templates' });
+    }
+
+    const tempFile = `${PROMPTS_FILE}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(templates, null, 2), 'utf-8');
+    fs.renameSync(tempFile, PROMPTS_FILE);
+
+    res.json({ success: true, savedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error('Error saving prompts JSON to disk:', error);
+    res.status(500).json({ error: 'Failed to write prompts to disk' });
+  }
+});
+
+app.get('/api/prompts/export', (req, res) => {
+  try {
+    initPromptsFile();
+    res.download(PROMPTS_FILE, 'projectflow-prompts.json');
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export prompts' });
   }
 });
 

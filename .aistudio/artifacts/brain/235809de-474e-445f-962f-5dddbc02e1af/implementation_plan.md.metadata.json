@@ -1,6 +1,6 @@
 {
-  "summary":  "Architecture and implementation plan to modularize the sidebar tree panel into a real hierarchical tree system supporting Features -> Tasks -> Linked Code Files and Subtasks with visual guide lines, smart sorting controls, and global selection highlighting.",
-  "updatedAt":  "2026-10-04T16:58:57.159857781Z",
+  "summary":  "Implementation plan for upgrading the project creation workflow with first-class 'Open Folder from Finder' alongside 'New Blank Project', accessible across the Activity Rail, Project Switcher, Empty State, and Project Modal.",
+  "updatedAt":  "2026-10-04T17:20:22.890406539Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

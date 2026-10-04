@@ -87,3 +87,22 @@ export interface BrowseDirectoryResult {
   directories: string[];
   exists: boolean;
 }
+
+export type PromptCategory =
+  | 'Implementation'
+  | 'Review'
+  | 'Testing'
+  | 'Debugging'
+  | 'Architecture'
+  | 'General';
+
+export interface PromptTemplate {
+  id: string;
+  title: string;
+  description?: string;
+  category: PromptCategory;
+  content: string;
+  createdAt: string;
+  isBuiltIn?: boolean;
+}
+

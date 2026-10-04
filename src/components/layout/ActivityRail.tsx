@@ -11,6 +11,7 @@ import {
   Check,
   ChevronRight,
   Settings,
+  FolderSearch,
 } from 'lucide-react';
 import { Project, ViewLayout } from '../../types';
 import { Button } from '../ui/button';
@@ -34,6 +35,7 @@ interface ActivityRailProps {
   activeProjectId?: string;
   onSelectProject: (id: string) => void;
   onOpenCreateProject: () => void;
+  onOpenFolderFinder?: () => void;
   viewLayout: ViewLayout;
   onChangeViewLayout: (view: ViewLayout) => void;
   onOpenSettings?: () => void;
@@ -44,6 +46,7 @@ export const ActivityRail: React.FC<ActivityRailProps> = ({
   activeProjectId,
   onSelectProject,
   onOpenCreateProject,
+  onOpenFolderFinder,
   viewLayout,
   onChangeViewLayout,
   onOpenSettings,
@@ -116,17 +119,44 @@ export const ActivityRail: React.FC<ActivityRailProps> = ({
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                onClick={onOpenFolderFinder}
+                className="text-xs text-sky-400 hover:text-sky-300 font-medium py-2 cursor-pointer"
+              >
+                <FolderSearch className="w-3.5 h-3.5 mr-1.5 text-sky-400" />
+                Open Project Folder (Finder)...
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={onOpenCreateProject}
-                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium py-2"
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium py-2 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 mr-1.5" />
-                Create New Project
+                Create Blank Project...
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
-        {/* Add Project Rail Button */}
+        {/* Quick Open Folder from Finder Button */}
+        <div className="mb-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onOpenFolderFinder}
+                className="w-8 h-8 rounded-lg text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 border border-sky-500/20 hover:border-sky-500/40"
+              >
+                <FolderSearch className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <span className="font-medium text-white">Open Project Folder</span>
+              <p className="text-[10px] text-neutral-400">Browse repository with Finder</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Create Blank Project Button */}
         <div className="mb-3">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -140,7 +170,8 @@ export const ActivityRail: React.FC<ActivityRailProps> = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              <span>Add New Project</span>
+              <span className="font-medium text-white">Create Blank Project</span>
+              <p className="text-[10px] text-neutral-400">Manual project setup</p>
             </TooltipContent>
           </Tooltip>
         </div>

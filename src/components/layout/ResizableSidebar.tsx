@@ -5,6 +5,8 @@ import {
   MoreVertical,
   Edit2,
   X,
+  FolderSearch,
+  Plus,
 } from 'lucide-react';
 import { Project, Feature, Task } from '../../types';
 import { Button } from '../ui/button';
@@ -12,6 +14,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { TooltipProvider } from '../ui/tooltip';
@@ -28,6 +31,8 @@ interface ResizableSidebarProps {
   onEditFeature: (feature: Feature) => void;
   onDeleteFeature: (featureId: string) => void;
   onEditProject?: (project: Project) => void;
+  onOpenFolderFinder?: () => void;
+  onOpenCreateProject?: () => void;
   onToggleSubtask?: (taskId: string, subtaskId: string) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
@@ -48,6 +53,8 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   onEditFeature,
   onDeleteFeature,
   onEditProject,
+  onOpenFolderFinder,
+  onOpenCreateProject,
   onToggleSubtask,
   searchQuery,
   onSearchChange,
@@ -210,18 +217,35 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
             </div>
           </div>
 
-          {project && onEditProject && (
+          {project && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-sm" className="h-6 w-6 text-neutral-400 hover:text-white shrink-0">
                   <MoreVertical className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem onClick={() => onEditProject(project)} className="text-xs">
-                  <Edit2 className="w-3.5 h-3.5 mr-2" />
-                  Edit Project
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-52">
+                {onEditProject && (
+                  <DropdownMenuItem onClick={() => onEditProject(project)} className="text-xs cursor-pointer">
+                    <Edit2 className="w-3.5 h-3.5 mr-2" />
+                    Edit Project Settings
+                  </DropdownMenuItem>
+                )}
+                {onOpenFolderFinder && (
+                  <DropdownMenuItem onClick={onOpenFolderFinder} className="text-xs text-sky-400 hover:text-sky-300 cursor-pointer">
+                    <FolderSearch className="w-3.5 h-3.5 mr-2 text-sky-400" />
+                    Open Folder in Finder...
+                  </DropdownMenuItem>
+                )}
+                {onOpenCreateProject && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onOpenCreateProject} className="text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer">
+                      <Plus className="w-3.5 h-3.5 mr-2" />
+                      New Blank Project...
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

@@ -2,7 +2,7 @@
   "projects": [
     {
       "id": "proj-1",
-      "title": "Customer Experience & Mobile Portal v2",
+      "title": "Customer Experience & Mobile",
       "description": "Modern customer-facing web and mobile interface with offline synchronization, push alerts, and authenticated service requests.",
       "columns": [
         {
@@ -310,5 +310,5 @@
     }
   ],
   "activeProjectId": "proj-1",
-  "viewLayout": "tree"
+  "viewLayout": "ai"
 }

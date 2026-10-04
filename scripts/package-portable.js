@@ -30,7 +30,7 @@ if (fs.existsSync(distDir)) {
   console.warn('⚠️ "dist" folder not found. Please run "npm run build" or "bun run build" first.');
 }
 
-// 3. Initialize data/projects.json
+// 3. Initialize data/projects.json and data/prompts.json
 const targetProjectsJson = path.join(dataDir, 'projects.json');
 const sourceProjectsJson = path.join(rootDir, 'data', 'projects.json');
 if (fs.existsSync(sourceProjectsJson)) {
@@ -42,7 +42,13 @@ if (fs.existsSync(sourceProjectsJson)) {
     'utf-8'
   );
 }
-console.log('✅ Local data isolated in ./data/projects.json (Zero AppData usage)');
+
+const targetPromptsJson = path.join(dataDir, 'prompts.json');
+const sourcePromptsJson = path.join(rootDir, 'data', 'prompts.json');
+if (fs.existsSync(sourcePromptsJson)) {
+  fs.copyFileSync(sourcePromptsJson, targetPromptsJson);
+}
+console.log('✅ Local data isolated in ./data (projects.json & prompts.json)');
 
 // 4. Copy launcher scripts, server runtime and documentation
 const filesToCopy = [

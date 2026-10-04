@@ -17,7 +17,7 @@ import { FeatureModal } from './components/common/FeatureModal';
 import { TaskModal } from './components/common/TaskModal';
 import { ColumnManagerModal } from './components/common/ColumnManagerModal';
 import { DirectoryPickerModal } from './components/common/DirectoryPickerModal';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FolderKanban, FolderSearch, Plus } from 'lucide-react';
 import { Button } from './components/ui/button';
 
 export default function App() {
@@ -67,6 +67,35 @@ export default function App() {
 
   const [isColumnManagerOpen, setIsColumnManagerOpen] = useState(false);
   const [isDirectoryFinderOpen, setIsDirectoryFinderOpen] = useState(false);
+  const [isProjectFinderOpen, setIsProjectFinderOpen] = useState(false);
+
+  // Directly open and configure a project from a picked local folder
+  const handleOpenProjectFromFolder = (folderPath: string) => {
+    setIsProjectFinderOpen(false);
+    const cleanPath = folderPath.trim();
+    if (!cleanPath) return;
+
+    // Derive project title from folder name
+    const folderName = cleanPath.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'New Project';
+
+    // If a project already exists with this exact path, switch to it immediately
+    const existing = projects.find((p) => p.rootDirectory === cleanPath);
+    if (existing) {
+      setActiveProjectId(existing.id);
+      return;
+    }
+
+    // Pre-populate ProjectModal for creation/review with linked folder
+    setEditingProject({
+      id: '',
+      title: folderName,
+      description: `Repository linked to ${cleanPath}`,
+      rootDirectory: cleanPath,
+      columns: [],
+      createdAt: '',
+    });
+    setIsProjectModalOpen(true);
+  };
 
   // Modal open handlers
   const handleOpenAddTask = (featureId: string, statusId?: string) => {
@@ -123,6 +152,7 @@ export default function App() {
               setEditingProject(null);
               setIsProjectModalOpen(true);
             }}
+            onOpenFolderFinder={() => setIsProjectFinderOpen(true)}
             viewLayout={viewLayout}
             onChangeViewLayout={setViewLayout}
           />
@@ -151,6 +181,11 @@ export default function App() {
               setEditingProject(proj);
               setIsProjectModalOpen(true);
             }}
+            onOpenFolderFinder={() => setIsProjectFinderOpen(true)}
+            onOpenCreateProject={() => {
+              setEditingProject(null);
+              setIsProjectModalOpen(true);
+            }}
             onToggleSubtask={handleToggleSubtask}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -174,6 +209,12 @@ export default function App() {
               features={features}
               tasks={tasks}
               searchFilter={searchQuery}
+              onUpdateTaskPrompt={(taskId, promptContext) => {
+                const task = tasks.find((t) => t.id === taskId);
+                if (task) {
+                  handleSaveTask({ ...task, aiPromptContext: promptContext }, task);
+                }
+              }}
             />
           ) : (
             <ProjectOverview
@@ -207,20 +248,63 @@ export default function App() {
             />
           )
         ) : (
-          <div className="text-center py-20 space-y-3">
-            <h2 className="text-base font-semibold text-neutral-100">No active project</h2>
-            <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-              Create a project to start planning features and generating AI-ready tasks.
-            </p>
-            <Button
-              onClick={() => {
-                setEditingProject(null);
-                setIsProjectModalOpen(true);
-              }}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white"
-            >
-              Create First Project
-            </Button>
+          <div className="max-w-xl mx-auto py-20 px-4 text-center space-y-6">
+            <div className="space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
+                <FolderKanban className="w-6 h-6" />
+              </div>
+              <h2 className="text-lg font-semibold text-neutral-100">Welcome to ProjectFlow</h2>
+              <p className="text-xs text-neutral-400 max-w-md mx-auto">
+                Open an existing local codebase or git repository to browse files and plan features, or start with a blank project.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+              {/* Option 1: Open Folder with Finder */}
+              <div
+                onClick={() => setIsProjectFinderOpen(true)}
+                className="group p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all cursor-pointer space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-105 transition-transform">
+                    <FolderSearch className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-mono text-sky-400 uppercase tracking-wider">Finder</span>
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-neutral-100 group-hover:text-sky-300 transition-colors">
+                    Open Project Folder
+                  </h3>
+                  <p className="text-[11px] text-neutral-400 leading-relaxed mt-0.5">
+                    Browse files & repos on your local machine to link directly.
+                  </p>
+                </div>
+              </div>
+
+              {/* Option 2: Blank Project */}
+              <div
+                onClick={() => {
+                  setEditingProject(null);
+                  setIsProjectModalOpen(true);
+                }}
+                className="group p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all cursor-pointer space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-wider">Manual</span>
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-neutral-100 group-hover:text-indigo-300 transition-colors">
+                    Create Blank Project
+                  </h3>
+                  <p className="text-[11px] text-neutral-400 leading-relaxed mt-0.5">
+                    Set up a blank project with custom kanban columns and objectives.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </AppShell>
@@ -288,6 +372,15 @@ export default function App() {
           title={`Link Local Directory for "${activeProject.title}"`}
         />
       )}
+
+      {/* Directory Finder Modal for Opening Project Folder directly */}
+      <DirectoryPickerModal
+        isOpen={isProjectFinderOpen}
+        initialDirectory="."
+        onClose={() => setIsProjectFinderOpen(false)}
+        onSelectDirectory={handleOpenProjectFromFolder}
+        title="Open Project Folder / Local Repository"
+      />
     </>
   );
 }

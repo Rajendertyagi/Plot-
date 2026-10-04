@@ -92,4 +92,47 @@ export const apiService = {
   getExportUrl(): string {
     return '/api/data/export';
   },
+
+  /**
+   * Fetch all global prompt templates from data/prompts.json
+   */
+  async fetchPrompts(): Promise<import('../types').PromptTemplate[]> {
+    try {
+      const response = await fetch('/api/prompts', {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn('Could not fetch prompts from server API:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Save prompt templates to data/prompts.json
+   */
+  async savePrompts(templates: import('../types').PromptTemplate[]): Promise<boolean> {
+    try {
+      const response = await fetch('/api/prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(templates),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Failed to save prompts to server disk:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Get direct download URL for the prompts.json file
+   */
+  getPromptsExportUrl(): string {
+    return '/api/prompts/export';
+  },
 };
+
