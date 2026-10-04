@@ -53,40 +53,14 @@ jobs:
         run: cargo build --release --manifest-path src-tauri/Cargo.toml
 
       - name: Assemble Self-Contained Portable Directory Structure
+        run: bun run package:portable
+        env:
+          CI: true
+
+      - name: Compress into Portable ZIP
         shell: pwsh
         run: |
-          $DistDir = "projectflow-windows-x64-portable"
-          New-Item -ItemType Directory -Force -Path $DistDir
-          New-Item -ItemType Directory -Force -Path "$DistDir/web"
-          New-Item -ItemType Directory -Force -Path "$DistDir/data"
-          New-Item -ItemType Directory -Force -Path "$DistDir/data/webview"
-
-          # 1. Copy compiled Windows executable (supports both target layouts)
-          if (Test-Path "src-tauri/target/release/projectflow.exe") {
-            Copy-Item "src-tauri/target/release/projectflow.exe" -Destination "$DistDir/projectflow.exe"
-          } elseif (Test-Path "target/release/projectflow.exe") {
-            Copy-Item "target/release/projectflow.exe" -Destination "$DistDir/projectflow.exe"
-          } else {
-            throw "Executable projectflow.exe not found in target directories"
-          }
-
-          # 2. Place web frontend folder directly next to the executable
-          Copy-Item -Recurse "dist/*" -Destination "$DistDir/web"
-
-          # 3. Copy starter projects database
-          if (Test-Path "data/projects.json") {
-            Copy-Item "data/projects.json" -Destination "$DistDir/data/projects.json"
-          } else {
-            '{"projects":[],"features":[],"tasks":[],"viewLayout":"tree"}' | Out-File -Encoding utf8 "$DistDir/data/projects.json"
-          }
-
-          # 4. Copy launcher batch scripts & docs
-          Copy-Item "start-web-mode.bat" -Destination "$DistDir/start-web-mode.bat"
-          Copy-Item "start-desktop-mode.bat" -Destination "$DistDir/start-desktop-mode.bat"
-          Copy-Item "README.txt" -Destination "$DistDir/README.txt"
-
-          # 5. Compress into final portable zip
-          Compress-Archive -Path "$DistDir" -DestinationPath "projectflow-windows-x64-portable.zip" -Force
+          Compress-Archive -Path "projectflow-windows-x64-portable" -DestinationPath "projectflow-windows-x64-portable.zip" -Force
           Write-Host "Portable ZIP created successfully: projectflow-windows-x64-portable.zip"
 
       - name: Upload Portable ZIP as Workflow Artifact

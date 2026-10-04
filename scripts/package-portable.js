@@ -14,7 +14,10 @@ const distDir = path.join(rootDir, 'dist');
 
 console.log('🚀 Assembling 100% Self-Contained Portable Windows Package...');
 
-// 1. Ensure folders exist
+// 1. Ensure target structure exists and clean web/
+if (fs.existsSync(webDir)) {
+  fs.rmSync(webDir, { recursive: true, force: true });
+}
 fs.mkdirSync(targetDir, { recursive: true });
 fs.mkdirSync(webDir, { recursive: true });
 fs.mkdirSync(webviewDir, { recursive: true });
@@ -61,14 +64,18 @@ let exeFound = false;
 for (const exe of candidateExes) {
   if (fs.existsSync(exe)) {
     fs.copyFileSync(exe, path.join(targetDir, 'projectflow.exe'));
-    console.log('✅ projectflow.exe bundled into portable package');
+    console.log(`✅ projectflow.exe copied from ${exe} into portable package`);
     exeFound = true;
     break;
   }
 }
 
 if (!exeFound) {
-  console.log('ℹ️ projectflow.exe will be placed here automatically when compiled by GitHub Actions or "cargo build --release"');
+  if (process.env.CI) {
+    throw new Error('❌ Fatal in CI: projectflow.exe was not found in release target directories.');
+  } else {
+    console.log('ℹ️ projectflow.exe will be placed here automatically when compiled by GitHub Actions or "cargo build --release"');
+  }
 }
 
 console.log('\n🎉 Self-contained package layout prepared:');
