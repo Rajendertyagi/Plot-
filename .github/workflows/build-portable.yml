@@ -23,15 +23,25 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache Bun & Node Modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Setup Rust Stable Toolchain (x86_64 Windows)
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Rust Cache
+      - name: Rust Dependencies Cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: 'src-tauri'
 
       - name: Install Frontend Dependencies with Bun
         run: bun install
@@ -51,8 +61,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$DistDir/data"
           New-Item -ItemType Directory -Force -Path "$DistDir/data/webview"
 
-          # 1. Copy compiled Windows executable
-          Copy-Item "src-tauri/target/release/projectflow.exe" -Destination "$DistDir/projectflow.exe"
+          # 1. Copy compiled Windows executable (supports both target layouts)
+          if (Test-Path "src-tauri/target/release/projectflow.exe") {
+            Copy-Item "src-tauri/target/release/projectflow.exe" -Destination "$DistDir/projectflow.exe"
+          } elseif (Test-Path "target/release/projectflow.exe") {
+            Copy-Item "target/release/projectflow.exe" -Destination "$DistDir/projectflow.exe"
+          } else {
+            throw "Executable projectflow.exe not found in target directories"
+          }
 
           # 2. Place web frontend folder directly next to the executable
           Copy-Item -Recurse "dist/*" -Destination "$DistDir/web"
@@ -64,7 +80,7 @@ jobs:
             '{"projects":[],"features":[],"tasks":[],"viewLayout":"tree"}' | Out-File -Encoding utf8 "$DistDir/data/projects.json"
           }
 
-          # 4. Copy launcher batch scripts
+          # 4. Copy launcher batch scripts & docs
           Copy-Item "start-web-mode.bat" -Destination "$DistDir/start-web-mode.bat"
           Copy-Item "start-desktop-mode.bat" -Destination "$DistDir/start-desktop-mode.bat"
           Copy-Item "README.txt" -Destination "$DistDir/README.txt"

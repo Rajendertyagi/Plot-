@@ -4,10 +4,8 @@
   "version": "1.0.0",
   "identifier": "com.projectflow.portable",
   "build": {
-    "beforeDevCommand": "",
     "devUrl": "http://localhost:4000",
-    "beforeBuildCommand": "bun run build",
-    "frontendDist": "../web"
+    "frontendDist": "../dist"
   },
   "app": {
     "windows": [
@@ -28,7 +26,6 @@
     }
   },
   "bundle": {
-    "active": false,
-    "targets": "none"
+    "active": false
   }
 }
