@@ -1,0 +1,37 @@
+:root {
+  /* Surfaces & Obsidian Theme Tokens */
+  --color-canvas: #0d0d0d;
+  --color-panel: #121214;
+  --color-surface: #17171a;
+  --color-surface-hover: #1f1f23;
+  --color-card: #212124;
+  --color-card-hover: #27272b;
+
+  /* Ambient Shadows */
+  --shadow-ambient: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  --shadow-floating: 0 12px 36px -4px rgba(0, 0, 0, 0.7);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  /* High Contrast Typography */
+  --text-primary: #ffffff;
+  --text-body: #d4d4d8;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  /* Status Colors */
+  --status-emerald-bg: rgba(16, 185, 129, 0.15);
+  --status-emerald-text: #6ee7b7;
+  --status-emerald-dot: #34d399;
+
+  --status-sky-bg: rgba(14, 165, 233, 0.15);
+  --status-sky-text: #7dd3fc;
+  --status-sky-dot: #38bdf8;
+
+  --status-amber-bg: rgba(245, 158, 11, 0.15);
+  --status-amber-text: #fcd34d;
+  --status-amber-dot: #fbbf24;
+
+  --status-rose-bg: rgba(244, 63, 94, 0.15);
+  --status-rose-text: #fda4af;
+  --status-rose-dot: #fb7185;
+}

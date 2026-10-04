@@ -1,0 +1,190 @@
+{
+  "projects": [
+    {
+      "id": "proj-1",
+      "title": "Customer Experience & Mobile Portal v2",
+      "description": "Modern customer-facing web and mobile interface with offline synchronization, push alerts, and authenticated service requests.",
+      "columns": [
+        { "id": "pending", "name": "Pending", "color": "sky" },
+        { "id": "holding", "name": "Holding", "color": "amber" },
+        { "id": "bug", "name": "Bug", "color": "rose" },
+        { "id": "done", "name": "Done", "color": "emerald", "isDone": true }
+      ],
+      "createdAt": "2026-09-20"
+    },
+    {
+      "id": "proj-2",
+      "title": "Internal Fleet & Inventory Telemetry",
+      "description": "Real-time vehicle tracking, local depot replenishment dispatching, and hardware sensor telemetry aggregation.",
+      "columns": [
+        { "id": "pending", "name": "Pending", "color": "sky" },
+        { "id": "holding", "name": "Holding", "color": "amber" },
+        { "id": "bug", "name": "Bug", "color": "rose" },
+        { "id": "review", "name": "In Review", "color": "purple" },
+        { "id": "done", "name": "Done", "color": "emerald", "isDone": true }
+      ],
+      "createdAt": "2026-09-28"
+    }
+  ],
+  "features": [
+    {
+      "id": "feat-1",
+      "projectId": "proj-1",
+      "title": "Biometric & Magic Link Authentication Flow",
+      "description": "Passwordless multi-factor authentication engine with WebAuthn biometrics, device registration tokens, and seamless SMS/Email magic link fallback.",
+      "lead": "Alex Mercer",
+      "targetDate": "2026-10-18",
+      "createdAt": "2026-09-21"
+    },
+    {
+      "id": "feat-2",
+      "projectId": "proj-1",
+      "title": "Real-Time Order Tracking & Geo-Push Notifications",
+      "description": "Interactive map viewer showing live dispatch coordinates, route polyline updates, and proximity-based browser web push notifications.",
+      "lead": "Sarah Lin",
+      "targetDate": "2026-10-25",
+      "createdAt": "2026-09-22"
+    },
+    {
+      "id": "feat-3",
+      "projectId": "proj-2",
+      "title": "CAN-Bus Sensor Telemetry Ingestion Pipeline",
+      "description": "High-throughput binary packet parser for on-board vehicle diagnostic units streaming over MQTT with automated schema validation.",
+      "lead": "Marcus Vance",
+      "targetDate": "2026-11-05",
+      "createdAt": "2026-09-29"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "projectId": "proj-1",
+      "featureId": "feat-1",
+      "title": "Implement WebAuthn credentials registration endpoint",
+      "description": "Support FIDO2 compliant public key credential creation on browser and passkeys on mobile safari.",
+      "statusId": "done",
+      "priority": "high",
+      "assignee": "Alex Mercer",
+      "dueDate": "2026-10-06",
+      "subtasks": [
+        { "id": "sub-1", "title": "Generate challenge nonce on backend", "completed": true },
+        { "id": "sub-2", "title": "Verify authenticator data signature", "completed": true },
+        { "id": "sub-3", "title": "Store credential ID & public key in database", "completed": true }
+      ],
+      "createdAt": "2026-09-22"
+    },
+    {
+      "id": "task-2",
+      "projectId": "proj-1",
+      "featureId": "feat-1",
+      "title": "Magic link rate-limiting and token expiration grace period",
+      "description": "Enforce strict 10-minute validity window and sliding exponential backoff per IP and destination email.",
+      "statusId": "pending",
+      "priority": "medium",
+      "assignee": "Elena Ross",
+      "dueDate": "2026-10-12",
+      "subtasks": [
+        { "id": "sub-4", "title": "Redis token store with TTL expiration", "completed": true },
+        { "id": "sub-5", "title": "Client error UI when token has expired", "completed": false }
+      ],
+      "createdAt": "2026-09-23"
+    },
+    {
+      "id": "task-3",
+      "projectId": "proj-1",
+      "featureId": "feat-1",
+      "title": "Safari iOS 17 passkey assertion failure on reload",
+      "description": "When users cancel the FaceID prompt, subsequent calls throw unhandled AbortError rather than graceful retry state.",
+      "statusId": "bug",
+      "priority": "urgent",
+      "assignee": "Alex Mercer",
+      "dueDate": "2026-10-08",
+      "subtasks": [
+        { "id": "sub-6", "title": "Catch AbortError on navigator.credentials.get", "completed": false },
+        { "id": "sub-7", "title": "Render fallback one-time code input", "completed": false }
+      ],
+      "createdAt": "2026-09-25"
+    },
+    {
+      "id": "task-4",
+      "projectId": "proj-1",
+      "featureId": "feat-1",
+      "title": "SMS provider compliance verification with Twilio Verify",
+      "description": "Blocked waiting on 10DLC brand registration approval from carrier telecom registry.",
+      "statusId": "holding",
+      "priority": "high",
+      "assignee": "Sarah Lin",
+      "dueDate": "2026-10-20",
+      "subtasks": [
+        { "id": "sub-8", "title": "Submit EIN documentation to carrier portal", "completed": true },
+        { "id": "sub-9", "title": "Verify campaign message templates", "completed": false }
+      ],
+      "createdAt": "2026-09-26"
+    },
+    {
+      "id": "task-5",
+      "projectId": "proj-1",
+      "featureId": "feat-2",
+      "title": "WebSocket heartbeat and automatic reconnect backoff",
+      "description": "Maintain persistent socket connection with client dispatch stream, auto-reconnecting on tunnel dropout.",
+      "statusId": "pending",
+      "priority": "high",
+      "assignee": "Sarah Lin",
+      "dueDate": "2026-10-15",
+      "subtasks": [
+        { "id": "sub-10", "title": "Heartbeat ping every 25 seconds", "completed": false },
+        { "id": "sub-11", "title": "Jittered exponential backoff reconnect", "completed": false }
+      ],
+      "createdAt": "2026-09-28"
+    },
+    {
+      "id": "task-6",
+      "projectId": "proj-1",
+      "featureId": "feat-2",
+      "title": "Map marker jump jitter on coordinate smoothing",
+      "description": "Vehicle icon skips abruptly between GPS bursts instead of using Kalman filter interpolation.",
+      "statusId": "bug",
+      "priority": "medium",
+      "assignee": "David K.",
+      "dueDate": "2026-10-14",
+      "subtasks": [
+        { "id": "sub-12", "title": "Add spherical interpolation (Slerp) on GPS coordinates", "completed": false }
+      ],
+      "createdAt": "2026-09-30"
+    },
+    {
+      "id": "task-7",
+      "projectId": "proj-2",
+      "featureId": "feat-3",
+      "title": "Parse J1939 engine temperature and RPM frames",
+      "description": "Extract standard parameter group numbers (PGN) from raw broadcast datagrams.",
+      "statusId": "done",
+      "priority": "urgent",
+      "assignee": "Marcus Vance",
+      "dueDate": "2026-10-02",
+      "subtasks": [
+        { "id": "sub-13", "title": "Decode PGN 65262 engine temperature", "completed": true },
+        { "id": "sub-14", "title": "Decode PGN 61444 electronic engine controller", "completed": true }
+      ],
+      "createdAt": "2026-09-30"
+    },
+    {
+      "id": "task-8",
+      "projectId": "proj-2",
+      "featureId": "feat-3",
+      "title": "Hardware vendor firmware spec update pending signature",
+      "description": "Awaiting updated protocol documentation for 2026 Euro-VI compliant ECM controllers.",
+      "statusId": "holding",
+      "priority": "medium",
+      "assignee": "Marcus Vance",
+      "dueDate": "2026-10-22",
+      "subtasks": [
+        { "id": "sub-15", "title": "Request NDA firmware specification draft", "completed": true },
+        { "id": "sub-16", "title": "Review memory map changes", "completed": false }
+      ],
+      "createdAt": "2026-10-01"
+    }
+  ],
+  "viewLayout": "tree",
+  "activeProjectId": "proj-1"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "ProjectFlow — Project, Feature & Task Manager",
+  "description": "Hierarchical project management app with features, detailed descriptions, tasks, subtasks, and configurable status columns (Done, Pending, Holding, Bug).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
