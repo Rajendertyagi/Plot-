@@ -33,6 +33,7 @@ export default function App() {
     isLoading,
     isSaving,
     handleCreateOrUpdateProject,
+    handleAddProjectFromDirectory,
     handleUpdateProjectDirectory,
     handleDeleteProject,
     handleCreateOrUpdateFeature,
@@ -69,32 +70,13 @@ export default function App() {
   const [isDirectoryFinderOpen, setIsDirectoryFinderOpen] = useState(false);
   const [isProjectFinderOpen, setIsProjectFinderOpen] = useState(false);
 
-  // Directly open and configure a project from a picked local folder
+  // Directly open and add a project from a picked local folder
   const handleOpenProjectFromFolder = (folderPath: string) => {
     setIsProjectFinderOpen(false);
     const cleanPath = folderPath.trim();
     if (!cleanPath) return;
 
-    // Derive project title from folder name
-    const folderName = cleanPath.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'New Project';
-
-    // If a project already exists with this exact path, switch to it immediately
-    const existing = projects.find((p) => p.rootDirectory === cleanPath);
-    if (existing) {
-      setActiveProjectId(existing.id);
-      return;
-    }
-
-    // Pre-populate ProjectModal for creation/review with linked folder
-    setEditingProject({
-      id: '',
-      title: folderName,
-      description: `Repository linked to ${cleanPath}`,
-      rootDirectory: cleanPath,
-      columns: [],
-      createdAt: '',
-    });
-    setIsProjectModalOpen(true);
+    handleAddProjectFromDirectory(cleanPath);
   };
 
   // Modal open handlers

@@ -6,3 +6,17 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Rust & Tauri build targets
+target/
+src-tauri/target/
+
+# Portable Build Outputs & Zips
+projectflow-windows-x64-portable/
+*.zip
+*.tar.gz
+
+# Cache & Temporary Files
+data/webview/
+*.tmp
+*.cmtmp

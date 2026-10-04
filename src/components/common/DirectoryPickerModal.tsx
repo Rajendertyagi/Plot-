@@ -224,19 +224,40 @@ export const DirectoryPickerModal: React.FC<DirectoryPickerModalProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[240px] overflow-y-auto p-1">
-                {filteredDirs.map((dirName) => (
-                  <button
-                    key={dirName}
-                    type="button"
-                    onClick={() => handleSelectSubdir(dirName)}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.07] border border-white/[0.03] hover:border-white/[0.1] text-left transition-colors group"
-                  >
-                    <Folder className="h-4 w-4 text-sky-400 shrink-0 group-hover:scale-105 transition-transform" />
-                    <span className="text-xs text-zinc-300 group-hover:text-white truncate">
-                      {dirName}
-                    </span>
-                  </button>
-                ))}
+                {filteredDirs.map((dirName) => {
+                  const separator = currentPath.endsWith('/') || currentPath.endsWith('\\') ? '' : '/';
+                  const fullSubdirPath = `${currentPath}${separator}${dirName}`;
+                  return (
+                    <div
+                      key={dirName}
+                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.07] border border-white/[0.03] hover:border-white/[0.1] text-left transition-colors group"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSubdir(dirName)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                        title={`Open folder ${dirName}`}
+                      >
+                        <Folder className="h-4 w-4 text-sky-400 shrink-0 group-hover:scale-105 transition-transform" />
+                        <span className="text-xs text-zinc-300 group-hover:text-white truncate">
+                          {dirName}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectDirectory(fullSubdirPath);
+                          onClose();
+                        }}
+                        className="px-2 py-0.5 rounded text-[10px] font-medium bg-white/[0.08] hover:bg-white text-zinc-300 hover:text-black transition-colors shrink-0"
+                        title={`Select "${dirName}" as project folder`}
+                      >
+                        Select
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -260,10 +281,10 @@ export const DirectoryPickerModal: React.FC<DirectoryPickerModalProps> = ({
               type="button"
               onClick={handleConfirm}
               disabled={!currentPath || loading}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium shadow-xs disabled:opacity-40 disabled:pointer-events-none transition-all"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-semibold shadow-xs disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
             >
               <Check className="h-3.5 w-3.5" />
-              <span>Link Directory</span>
+              <span>Select Current Folder</span>
             </button>
           </div>
         </div>

@@ -14,11 +14,22 @@ const distDir = path.join(rootDir, 'dist');
 
 console.log('[INFO] Assembling 100% Self-Contained Portable Windows Package...');
 
-// 1. Ensure target structure exists and clean web/
-if (fs.existsSync(webDir)) {
-  fs.rmSync(webDir, { recursive: true, force: true });
+// 1. Ensure target structure is fresh and completely clean
+if (fs.existsSync(targetDir)) {
+  // Preserve projectflow.exe if present
+  const exePath = path.join(targetDir, 'projectflow.exe');
+  let tempExeBuffer = null;
+  if (fs.existsSync(exePath)) {
+    try { tempExeBuffer = fs.readFileSync(exePath); } catch {}
+  }
+  fs.rmSync(targetDir, { recursive: true, force: true });
+  fs.mkdirSync(targetDir, { recursive: true });
+  if (tempExeBuffer) {
+    fs.writeFileSync(exePath, tempExeBuffer);
+  }
+} else {
+  fs.mkdirSync(targetDir, { recursive: true });
 }
-fs.mkdirSync(targetDir, { recursive: true });
 fs.mkdirSync(webDir, { recursive: true });
 fs.mkdirSync(webviewDir, { recursive: true });
 
@@ -56,8 +67,7 @@ console.log('[OK] Local data isolated in ./data (projects.json and prompts.json)
 const filesToCopy = [
   'start-web-mode.bat',
   'start-desktop-mode.bat',
-  'README.txt',
-  'package.json'
+  'README.txt'
 ];
 for (const file of filesToCopy) {
   const src = path.join(rootDir, file);

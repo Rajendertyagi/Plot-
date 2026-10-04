@@ -82,7 +82,7 @@ export function useProjectData() {
     rootDirectory?: string,
     editingProject?: Project | null
   ) => {
-    if (editingProject) {
+    if (editingProject && editingProject.id && editingProject.id.trim() !== '') {
       setProjects((prev) =>
         prev.map((p) =>
           p.id === editingProject.id
@@ -99,8 +99,8 @@ export function useProjectData() {
       ];
       const newProj: Project = {
         id: `proj-${Date.now()}`,
-        title,
-        description,
+        title: title || 'New Project',
+        description: description || '',
         columns: defaultCols,
         createdAt: new Date().toISOString().split('T')[0],
         rootDirectory: rootDirectory || '.',
@@ -108,6 +108,36 @@ export function useProjectData() {
       setProjects((prev) => [newProj, ...prev]);
       setActiveProjectId(newProj.id);
     }
+  };
+
+  const handleAddProjectFromDirectory = (directoryPath: string) => {
+    const cleanPath = directoryPath.trim() || '.';
+    const folderName = cleanPath.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'New Project';
+
+    // If existing project matches this directory, switch to it
+    const existing = projects.find((p) => p.rootDirectory === cleanPath);
+    if (existing) {
+      setActiveProjectId(existing.id);
+      return existing;
+    }
+
+    const defaultCols: StatusColumn[] = [
+      { id: 'pending', name: 'Pending', color: 'sky' },
+      { id: 'holding', name: 'Holding', color: 'amber' },
+      { id: 'bug', name: 'Bug', color: 'rose' },
+      { id: 'done', name: 'Done', color: 'emerald', isDone: true },
+    ];
+    const newProj: Project = {
+      id: `proj-${Date.now()}`,
+      title: folderName,
+      description: `Project repository linked to ${cleanPath}`,
+      columns: defaultCols,
+      createdAt: new Date().toISOString().split('T')[0],
+      rootDirectory: cleanPath,
+    };
+    setProjects((prev) => [newProj, ...prev]);
+    setActiveProjectId(newProj.id);
+    return newProj;
   };
 
   const handleUpdateProjectDirectory = (projectId: string, directoryPath: string) => {
@@ -287,6 +317,7 @@ export function useProjectData() {
     isSaving,
     lastSaved,
     handleCreateOrUpdateProject,
+    handleAddProjectFromDirectory,
     handleUpdateProjectDirectory,
     handleDeleteProject,
     handleCreateOrUpdateFeature,

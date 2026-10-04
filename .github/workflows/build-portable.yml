@@ -55,6 +55,11 @@ jobs:
       - name: Assemble Self-Contained Portable Directory Structure
         shell: pwsh
         run: |
+          # Clean any existing portable build directory to prevent stale/extra files
+          if (Test-Path "projectflow-windows-x64-portable") {
+            Remove-Item -Path "projectflow-windows-x64-portable" -Recurse -Force
+          }
+
           New-Item -ItemType Directory -Force -Path "projectflow-windows-x64-portable\web" | Out-Null
           New-Item -ItemType Directory -Force -Path "projectflow-windows-x64-portable\data\webview" | Out-Null
 
@@ -78,8 +83,8 @@ jobs:
           }
           Write-Host "[OK] Local data isolated in ./data"
 
-          # Copy launchers and documents safely
-          @("start-web-mode.bat", "start-desktop-mode.bat", "README.txt", "package.json") | ForEach-Object {
+          # Copy launchers and documents safely (No dev files like package.json)
+          @("start-web-mode.bat", "start-desktop-mode.bat", "README.txt") | ForEach-Object {
             if (Test-Path $_) {
               Copy-Item -Path $_ -Destination "projectflow-windows-x64-portable\" -Force
             }
