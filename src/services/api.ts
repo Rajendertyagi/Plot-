@@ -1,138 +1,140 @@
-import { AppDataPayload } from '../types';
+import { AppDataPayload, PromptTemplate } from '../types';
 import { isTauriDesktop, invokeDesktopCommand } from './environment';
+import initialProjectsData from '../../data/projects.json';
+import initialPromptsData from '../../data/prompts.json';
 
-const API_BASE = '/api/data';
-const BACKUP_STORAGE_KEY = 'projectflow_offline_backup_v1';
+const STORAGE_KEY = 'projectflow_data_v1';
+const PROMPTS_STORAGE_KEY = 'projectflow_prompts_v1';
 
 export const apiService = {
   /**
    * Fetch all application data.
    * - In Desktop mode: reads from isolated ./data/projects.json via native Rust IPC
-   * - In Web mode: reads from /api/data on port 4000
+   * - In Web mode: reads from localStorage (seeded with default data on first run)
    */
   async fetchData(): Promise<AppDataPayload | null> {
-    // 1. Try Desktop Mode (Native Tauri)
+    // 1. Desktop Mode (Native Tauri)
     if (isTauriDesktop()) {
       try {
         const data = await invokeDesktopCommand<AppDataPayload>('load_project_data');
         if (data) {
-          localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(data));
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          } catch {}
           return data;
         }
       } catch (err) {
-        console.warn('Native desktop data load failed, checking web API fallback:', err);
+        console.warn('Native desktop data load failed, falling back to local snapshot:', err);
       }
     }
 
-    // 2. Web Mode (Fetch via REST API)
+    // 2. Web Mode (Browser LocalStorage with seed fallback)
     try {
-      const response = await fetch(API_BASE, {
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-      const data: AppDataPayload = await response.json();
-      localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(data));
-      return data;
-    } catch (error) {
-      console.warn('Could not fetch from server API, falling back to cached snapshot:', error);
-      const cached = localStorage.getItem(BACKUP_STORAGE_KEY);
-      if (cached) {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
         try {
-          return JSON.parse(cached);
+          return JSON.parse(stored) as AppDataPayload;
         } catch {
-          return null;
+          // If JSON parse fails, fall through to initial data
         }
       }
-      return null;
+
+      // Initialize with bundled default seed data
+      const defaultData = initialProjectsData as unknown as AppDataPayload;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultData));
+      } catch {}
+      return defaultData;
+    } catch (error) {
+      console.warn('Could not read from localStorage, using default seed:', error);
+      return initialProjectsData as unknown as AppDataPayload;
     }
   },
 
   /**
-   * Atomically save state payload to disk.
+   * Save state payload.
    * - In Desktop mode: writes to ./data/projects.json next to .exe via native Rust IPC
-   * - In Web mode: writes to /api/data on port 4000
+   * - In Web mode: writes to localStorage
    */
   async saveData(payload: AppDataPayload): Promise<boolean> {
-    // Immediate local cache
+    // 1. Save to local browser storage
     try {
-      localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
       console.error('LocalStorage write error', e);
     }
 
-    // 1. Desktop Mode
+    // 2. Desktop Mode (Tauri Rust IPC)
     if (isTauriDesktop()) {
       try {
         const result = await invokeDesktopCommand<boolean>('save_project_data', { payload });
         return result ?? true;
       } catch (err) {
-        console.warn('Desktop native save failed, trying web fallback:', err);
+        console.warn('Desktop native save failed:', err);
       }
     }
 
-    // 2. Web Mode
-    try {
-      const response = await fetch(API_BASE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      return response.ok;
-    } catch (error) {
-      console.error('Failed to write JSON payload to server disk:', error);
-      return false;
-    }
+    return true;
   },
 
   /**
-   * Get direct download URL for the projects.json file
+   * Get direct download URL for the projects.json file as a client-side Blob URL
    */
   getExportUrl(): string {
-    return '/api/data/export';
-  },
-
-  /**
-   * Fetch all global prompt templates from data/prompts.json
-   */
-  async fetchPrompts(): Promise<import('../types').PromptTemplate[]> {
     try {
-      const response = await fetch('/api/prompts', {
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.warn('Could not fetch prompts from server API:', error);
-      return [];
+      const stored = localStorage.getItem(STORAGE_KEY) || JSON.stringify(initialProjectsData, null, 2);
+      const blob = new Blob([stored], { type: 'application/json' });
+      return URL.createObjectURL(blob);
+    } catch {
+      return '#';
     }
   },
 
   /**
-   * Save prompt templates to data/prompts.json
+   * Fetch all global prompt templates
    */
-  async savePrompts(templates: import('../types').PromptTemplate[]): Promise<boolean> {
+  async fetchPrompts(): Promise<PromptTemplate[]> {
     try {
-      const response = await fetch('/api/prompts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templates),
-      });
-      return response.ok;
+      const stored = localStorage.getItem(PROMPTS_STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored) as PromptTemplate[];
+      }
+      const initial = initialPromptsData as unknown as PromptTemplate[];
+      try {
+        localStorage.setItem(PROMPTS_STORAGE_KEY, JSON.stringify(initial));
+      } catch {}
+      return initial;
     } catch (error) {
-      console.error('Failed to save prompts to server disk:', error);
+      console.warn('Could not fetch prompts, using default seed:', error);
+      return initialPromptsData as unknown as PromptTemplate[];
+    }
+  },
+
+  /**
+   * Save prompt templates
+   */
+  async savePrompts(templates: PromptTemplate[]): Promise<boolean> {
+    try {
+      localStorage.setItem(PROMPTS_STORAGE_KEY, JSON.stringify(templates));
+      return true;
+    } catch (error) {
+      console.error('Failed to save prompts to storage:', error);
       return false;
     }
   },
 
   /**
-   * Get direct download URL for the prompts.json file
+   * Get direct download URL for the prompts.json file as a client-side Blob URL
    */
   getPromptsExportUrl(): string {
-    return '/api/prompts/export';
+    try {
+      const stored = localStorage.getItem(PROMPTS_STORAGE_KEY) || JSON.stringify(initialPromptsData, null, 2);
+      const blob = new Blob([stored], { type: 'application/json' });
+      return URL.createObjectURL(blob);
+    } catch {
+      return '#';
+    }
   },
 };
+
 

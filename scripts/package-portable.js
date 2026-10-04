@@ -50,12 +50,11 @@ if (fs.existsSync(sourcePromptsJson)) {
 }
 console.log('✅ Local data isolated in ./data (projects.json & prompts.json)');
 
-// 4. Copy launcher scripts, server runtime and documentation
+// 4. Copy launcher scripts and documentation
 const filesToCopy = [
   'start-web-mode.bat',
   'start-desktop-mode.bat',
   'README.txt',
-  'server.ts',
   'package.json'
 ];
 for (const file of filesToCopy) {
@@ -65,7 +64,7 @@ for (const file of filesToCopy) {
     fs.copyFileSync(src, dest);
   }
 }
-console.log('✅ Launchers & server.ts copied into portable package');
+console.log('✅ Launchers & configs copied into portable package');
 
 // 5. Copy executable if already built by cargo/tauri
 const candidateExes = [

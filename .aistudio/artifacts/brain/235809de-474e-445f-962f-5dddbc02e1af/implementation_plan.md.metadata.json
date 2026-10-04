@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan for upgrading the project creation workflow with first-class 'Open Folder from Finder' alongside 'New Blank Project', accessible across the Activity Rail, Project Switcher, Empty State, and Project Modal.",
-  "updatedAt":  "2026-10-04T17:20:22.890406539Z",
+  "summary":  "Implementation plan to remove Express completely from ProjectFlow, transition the web preview to a pure Vite development server with localStorage persistence, and prepare the project for standalone Rust/Tauri execution.",
+  "updatedAt":  "2026-10-04T18:25:09.114508477Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

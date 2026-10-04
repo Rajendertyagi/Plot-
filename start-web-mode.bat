@@ -22,16 +22,16 @@ where bun >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo [OK] Using Bun runtime...
     cd /d "%APP_DIR%"
-    bun run "%APP_DIR%server.ts"
+    bun x vite preview --port 4000
     goto end
 )
 
-REM 2. Fallback to Node.js / npx tsx
+REM 2. Fallback to Node.js / npx vite
 where node >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo [OK] Using Node.js runtime...
     cd /d "%APP_DIR%"
-    npx -y tsx "%APP_DIR%server.ts"
+    npx vite preview --port 4000
     goto end
 )
 

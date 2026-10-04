@@ -57,17 +57,17 @@ jobs:
         env:
           CI: true
 
-      - name: Compress into Portable ZIP
+      - name: Compress into Portable ZIP for GitHub Releases
         shell: pwsh
         run: |
-          Compress-Archive -Path "projectflow-windows-x64-portable" -DestinationPath "projectflow-windows-x64-portable.zip" -Force
-          Write-Host "Portable ZIP created successfully: projectflow-windows-x64-portable.zip"
+          Compress-Archive -Path "projectflow-windows-x64-portable\*" -DestinationPath "projectflow-windows-x64-portable.zip" -Force
+          Write-Host "Portable ZIP created successfully for GitHub Releases"
 
-      - name: Upload Portable ZIP as Workflow Artifact
+      - name: Upload Portable Package as Workflow Artifact (No Nested Zip)
         uses: actions/upload-artifact@v4
         with:
           name: projectflow-windows-x64-portable
-          path: projectflow-windows-x64-portable.zip
+          path: projectflow-windows-x64-portable/
           retention-days: 30
 
       - name: Publish to GitHub Releases (On Version Tag)
